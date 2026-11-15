@@ -1,0 +1,3679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>THE MAGICAL SOUP ADVENTURE 🍲</title>
+    <!-- Tailwind CSS for responsive HUD & Smart TV friendly UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Fredoka & Nunito for playful, readable elementary EFL typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+    <!-- Three.js r128 CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Firebase SDKs for Real-Time 9-Team Cooperative Multiplayer -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, collection, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        window.FB = {
+            initializeApp, getAuth, signInAnonymously, signInWithCustomToken,
+            getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, collection, runTransaction
+        };
+        if (window.initFirebaseMultiplayer) {
+            window.initFirebaseMultiplayer();
+        }
+    </script>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            touch-action: none;
+        }
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Fredoka', 'Nunito', sans-serif;
+            background: #38bdf8;
+        }
+        #game-container {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Roblox-inspired chunky 3D buttons */
+        .btn-roblox {
+            transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.12s ease, filter 0.15s ease;
+            box-shadow: 0 6px 0 rgba(0,0,0,0.28), 0 10px 20px rgba(0,0,0,0.2);
+        }
+        .btn-roblox:active {
+            transform: translateY(4px) scale(0.97);
+            box-shadow: 0 2px 0 rgba(0,0,0,0.28), 0 4px 10px rgba(0,0,0,0.18);
+        }
+
+        .text-outline {
+            text-shadow:
+                -2px -2px 0 #1e293b,
+                 2px -2px 0 #1e293b,
+                -2px  2px 0 #1e293b,
+                 2px  2px 0 #1e293b,
+                 0px  4px 0 #0f172a;
+        }
+
+        /* Floating 3D world label */
+        #world-label {
+            position: fixed;
+            pointer-events: none;
+            transform: translate(-50%, -125%);
+            z-index: 25;
+            transition: opacity 0.12s ease;
+        }
+
+        /* Pulse glow for active interact button */
+        @keyframes pulseGlow {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.85), 0 8px 0 #15803d; }
+            50% { transform: scale(1.06); box-shadow: 0 0 0 18px rgba(34, 197, 94, 0), 0 8px 0 #15803d; }
+        }
+        .interact-ready {
+            animation: pulseGlow 1.25s infinite;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.65); opacity: 0; }
+            80% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .pop-in {
+            animation: popIn 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        /* Confetti canvas overlay */
+        #confetti-canvas {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 60;
+        }
+
+        /* Virtual Joystick Styling */
+        #joystick-zone {
+            position: fixed;
+            bottom: 22px;
+            left: 22px;
+            width: 156px;
+            height: 156px;
+            border-radius: 9999px;
+            background: radial-gradient(circle, rgba(255,255,255,0.32) 0%, rgba(15,23,42,0.4) 100%);
+            border: 4px solid rgba(255, 255, 255, 0.72);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.28);
+            z-index: 30;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #joystick-knob {
+            width: 68px;
+            height: 68px;
+            border-radius: 9999px;
+            background: linear-gradient(145deg, #ffffff, #e2e8f0);
+            border: 4px solid #38bdf8;
+            box-shadow: 0 5px 12px rgba(0,0,0,0.35);
+            pointer-events: none;
+            transform: translate(0px, 0px);
+        }
+
+        /* Custom sleek scrollbars for team roster & leaderboard */
+        .custom-scroll::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.08);
+            border-radius: 9999px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: rgba(56, 189, 248, 0.7);
+            border-radius: 9999px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 3D Canvas Container -->
+    <div id="game-container"></div>
+
+    <!-- Confetti Overlay for Victory -->
+    <canvas id="confetti-canvas" class="hidden"></canvas>
+
+    <!-- Floating 3D Item Name Tag -->
+    <div id="world-label" class="hidden">
+        <div class="bg-white/95 border-4 border-slate-800 px-4 py-1.5 rounded-2xl shadow-xl flex items-center gap-2">
+            <span id="world-label-icon" class="text-2xl">🥕</span>
+            <span id="world-label-text" class="text-xl md:text-2xl font-extrabold text-slate-900 tracking-wide">Carrots</span>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- 1. CHARACTER SELECTION OVERLAY                            -->
+    <!-- ========================================================= -->
+    <div id="char-select-screen" class="fixed inset-0 z-50 flex flex-col justify-between p-3 sm:p-5 pointer-events-none bg-gradient-to-b from-sky-500/45 via-transparent to-indigo-950/70">
+        <!-- Top Title Header -->
+        <div class="text-center pointer-events-auto mt-1">
+            <div class="inline-block bg-amber-400 border-4 border-slate-900 px-4 py-1 rounded-full shadow-lg mb-1.5">
+                <span class="text-slate-900 font-black text-xs sm:text-sm md:text-base tracking-wider uppercase">🌟 9-Team Cooperative English Adventure • Voice &amp; Smart TV Ready 🌟</span>
+            </div>
+            <h1 class="text-2xl sm:text-4xl md:text-5xl font-black text-yellow-300 text-outline tracking-wide">
+                THE MAGICAL SOUP ADVENTURE 🍲
+            </h1>
+            <p class="text-white font-bold text-sm sm:text-lg mt-0.5 drop-shadow-md">
+                Step 1: Enter your name, pick your anime hero, and join your classroom team!
+            </p>
+        </div>
+
+        <!-- Bottom Character Roster & Proceed to Team Lobby Button -->
+        <div class="w-full max-w-6xl mx-auto pointer-events-auto flex flex-col items-center gap-2.5 sm:gap-3 mb-1">
+            <!-- Student Name + Classroom Code Bar (Smart TV Tap Friendly) -->
+            <div class="w-full max-w-3xl bg-white/95 border-4 border-slate-900 rounded-3xl p-2.5 sm:p-3 shadow-xl flex flex-wrap items-center justify-center gap-2.5">
+                <div class="flex items-center gap-2 flex-1 min-w-[210px]">
+                    <span class="text-xl">🧑‍🎓</span>
+                    <input id="input-player-name" type="text" maxlength="14" placeholder="Student Name..."
+                        class="w-full bg-slate-100 border-2 border-slate-400 focus:border-sky-500 outline-none rounded-xl px-3 py-1.5 font-black text-slate-900 text-base sm:text-lg" />
+                    <button id="btn-random-name" class="btn-roblox bg-amber-300 border-2 border-slate-900 text-slate-900 font-black px-3 py-1.5 rounded-xl text-sm whitespace-nowrap cursor-pointer" title="Pick a Random Classroom Name">
+                        🎲 Name
+                    </button>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="font-extrabold text-slate-700 text-sm">🏫 Room:</span>
+                    <input id="input-room-code" type="text" maxlength="10" value="CLASS-1"
+                        class="w-28 bg-sky-50 border-2 border-sky-400 focus:border-sky-600 outline-none rounded-xl px-2.5 py-1.5 font-black text-sky-950 text-center uppercase text-base" />
+                </div>
+            </div>
+
+            <!-- Selected Character Info Pill -->
+            <div id="selected-char-banner" class="bg-white/95 border-4 border-slate-900 rounded-2xl px-5 py-1.5 shadow-xl flex items-center gap-2.5">
+                <span id="sel-char-badge" class="bg-blue-500 text-white font-extrabold px-3 py-0.5 rounded-xl text-xs sm:text-sm uppercase">Boy</span>
+                <span id="sel-char-name" class="text-xl sm:text-2xl font-black text-slate-900">Sora</span>
+                <span class="text-slate-400 font-bold">•</span>
+                <span id="sel-char-desc" class="text-slate-700 font-bold text-sm sm:text-base">Blue Hoodie &amp; Spiky Dark-Blue Hair</span>
+            </div>
+
+            <!-- 6 Character Cards Grid -->
+            <div id="char-cards-grid" class="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-3 w-full">
+                <!-- Populated dynamically via JS -->
+            </div>
+
+            <!-- ENTER 9-TEAM LOBBY Button -->
+            <button id="btn-to-lobby" class="btn-roblox bg-gradient-to-b from-emerald-400 to-green-600 hover:from-emerald-300 hover:to-green-500 border-4 border-slate-900 text-white font-black text-xl sm:text-3xl px-9 py-3 sm:py-3.5 rounded-3xl tracking-wider flex items-center gap-3 cursor-pointer">
+                <span>🏫 CHOOSE YOUR TEAM (1–9) ▶</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- 1B. 9-TEAM COOPERATIVE MULTIPLAYER SELECTION LOBBY        -->
+    <!-- ========================================================= -->
+    <div id="team-lobby-screen" class="hidden fixed inset-0 z-50 flex flex-col justify-between p-3 sm:p-5 bg-slate-950/85 backdrop-blur-sm overflow-y-auto custom-scroll">
+        <!-- Top Lobby Header -->
+        <div class="max-w-7xl w-full mx-auto flex flex-wrap items-center justify-between gap-2 bg-white/95 border-4 border-slate-900 rounded-3xl p-3 sm:px-5 shadow-2xl">
+            <div class="flex items-center gap-3">
+                <button id="btn-back-char" class="btn-roblox bg-slate-200 border-3 border-slate-900 text-slate-900 font-black px-3.5 py-2 rounded-2xl text-sm sm:text-base cursor-pointer">
+                    ◀ Hero
+                </button>
+                <div>
+                    <h2 class="text-xl sm:text-3xl font-black text-slate-900 leading-tight">
+                        🏫 CLASSROOM TEAM LOBBY <span id="lobby-room-badge" class="bg-sky-500 text-white px-2.5 py-0.5 rounded-xl text-sm sm:text-lg align-middle">CLASS-1</span>
+                    </h2>
+                    <p class="text-slate-600 font-bold text-xs sm:text-sm">
+                        Join your assigned team (1–9)! Each team plays in its own private house, kitchen &amp; garden.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Classroom Demo / Single-Device AI Helper Toggle + Sync Status -->
+            <div class="flex flex-wrap items-center gap-2">
+                <span id="sync-status-pill" class="bg-emerald-100 border-2 border-emerald-500 text-emerald-900 font-extrabold px-3 py-1 rounded-full text-xs sm:text-sm">
+                    🟢 Live Sync Ready
+                </span>
+                <button id="btn-sim-class" class="btn-roblox bg-amber-300 border-3 border-slate-900 text-slate-900 font-black px-3.5 py-2 rounded-2xl text-xs sm:text-sm cursor-pointer" title="Add AI Teammates & Rival Teams for single-device classroom testing">
+                    🤖 Simulate Classmates: OFF
+                </button>
+            </div>
+        </div>
+
+        <!-- Center 9-Team Grid (3x3 on desktop/TV, 1-2 cols on mobile) -->
+        <div id="teams-grid" class="max-w-7xl w-full mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 my-3">
+            <!-- 9 Team Cards rendered dynamically via JS -->
+        </div>
+
+        <!-- Bottom Action Bar: Ready Toggle & Start Team Adventure -->
+        <div id="lobby-bottom-bar" class="max-w-4xl w-full mx-auto bg-white/95 border-4 border-slate-900 rounded-3xl p-3 sm:px-6 shadow-2xl flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5">
+                <span id="lobby-my-team-badge" class="bg-slate-800 text-white font-black px-3.5 py-1.5 rounded-2xl text-sm sm:text-base">
+                    No Team Selected
+                </span>
+                <span id="lobby-ready-hint" class="text-slate-700 font-bold text-xs sm:text-base">
+                    Tap "JOIN TEAM" on your assigned team card above!
+                </span>
+            </div>
+            <div class="flex items-center gap-2.5 ml-auto">
+                <button id="btn-toggle-ready" disabled class="btn-roblox bg-slate-300 border-4 border-slate-900 text-slate-600 font-black text-base sm:text-xl px-5 py-2.5 rounded-2xl cursor-not-allowed">
+                    ⬜ READY
+                </button>
+                <button id="btn-start-team-game" disabled class="btn-roblox bg-slate-300 border-4 border-slate-900 text-slate-600 font-black text-base sm:text-xl px-6 py-2.5 rounded-2xl cursor-not-allowed">
+                    ▶ START TEAM MISSION
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- 2. IN-GAME HUD (MISSION, CHECKLIST, VOICE, 9-TEAM BOARD)  -->
+    <!-- ========================================================= -->
+    <div id="game-hud" class="hidden fixed inset-0 z-20 pointer-events-none">
+
+        <!-- TOP BAR: Shared Team Checklist + Voice Mission Banner + Scoreboard/Audio Controls -->
+        <div class="w-full flex flex-wrap items-start justify-between p-2.5 sm:p-4 gap-2">
+            <!-- Left: Shared Team Recipe Checklist Card + Currently Carrying Badge -->
+            <div class="pointer-events-auto flex flex-col gap-2 max-w-[310px] sm:max-w-[365px]">
+                <div class="bg-white/95 border-4 border-slate-900 rounded-3xl p-3 shadow-2xl">
+                    <div class="flex items-center justify-between gap-2 border-b-2 border-slate-200 pb-1.5 mb-2">
+                        <span class="font-black text-slate-900 text-sm sm:text-base flex items-center gap-1.5">
+                            <span id="hud-team-pill" class="bg-rose-600 text-white px-2.5 py-0.5 rounded-xl text-xs sm:text-sm">TEAM 1</span>
+                            <span>Shared Recipe</span>
+                        </span>
+                        <span id="ingredient-counter" class="bg-amber-400 border-2 border-slate-900 text-slate-900 font-black px-2.5 py-0.5 rounded-full text-xs sm:text-sm">
+                            0/6
+                        </span>
+                    </div>
+                    <div id="checklist-grid" class="grid grid-cols-2 gap-1.5 text-xs sm:text-sm font-extrabold">
+                        <!-- 6 shared checklist items rendered by JS -->
+                    </div>
+                </div>
+
+                <!-- Carrying Status Pill -->
+                <div id="carrying-badge" class="bg-indigo-600/95 border-4 border-slate-900 text-white rounded-2xl px-3.5 py-1.5 shadow-xl flex items-center gap-2 font-extrabold text-xs sm:text-sm">
+                    <span id="carrying-icon" class="text-lg">🎒</span>
+                    <span id="carrying-text">Hands Empty — Work together to find items!</span>
+                </div>
+            </div>
+
+            <!-- Center: Main Mission & Spoken Voice Instruction Banner -->
+            <div class="flex-1 min-w-[250px] max-w-xl mx-auto flex flex-col items-center gap-1.5">
+                <div class="bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 border-4 border-slate-900 rounded-3xl px-4 py-2 shadow-xl text-center">
+                    <div id="mission-title" class="text-lg sm:text-2xl md:text-3xl font-black text-slate-900 leading-tight">
+                        Let's Make a Delicious Soup!
+                    </div>
+                    <div id="mission-sub" class="text-xs sm:text-base font-extrabold text-slate-800 mt-0.5">
+                        Work with your team to find all 6 ingredients!
+                    </div>
+                </div>
+
+                <!-- Dynamic Feedback Toast Banner -->
+                <div id="feedback-banner" class="hidden pop-in bg-slate-900/95 border-4 border-white text-white rounded-2xl px-4 py-2 shadow-2xl text-center max-w-lg">
+                    <p id="feedback-text" class="text-sm sm:text-lg font-black tracking-wide"></p>
+                </div>
+            </div>
+
+            <!-- Right: Team Score/Timer, Voice Replay, 9-Team Scoreboard Toggle & Camera Buttons -->
+            <div class="pointer-events-auto flex flex-col items-end gap-1.5">
+                <div class="flex flex-wrap items-center justify-end gap-1.5">
+                    <div class="bg-white/95 border-4 border-slate-900 rounded-2xl px-3 py-1 shadow-lg flex items-center gap-2">
+                        <span class="font-black text-slate-900 text-sm sm:text-base">⭐ <span id="hud-score">0</span></span>
+                        <span class="text-slate-300">|</span>
+                        <span class="font-black text-sky-700 text-sm sm:text-base">⏱️ <span id="hud-timer">00:00</span></span>
+                    </div>
+                    <button id="btn-toggle-scoreboard" class="btn-roblox bg-amber-300 border-4 border-slate-900 text-slate-900 font-black px-3 py-1.5 rounded-2xl text-xs sm:text-sm cursor-pointer">
+                        📊 9 Teams
+                    </button>
+                </div>
+
+                <div class="flex flex-wrap items-center justify-end gap-1.5">
+                    <button id="btn-replay-voice" class="btn-roblox bg-emerald-400 border-3 border-slate-900 text-slate-950 font-black px-3 py-1.5 rounded-2xl text-xs sm:text-sm cursor-pointer" title="Repeat Spoken Instruction">
+                        🗣️ Replay Voice
+                    </button>
+                    <button id="btn-mute" class="btn-roblox bg-sky-400 border-3 border-slate-900 text-slate-900 font-black px-3 py-1.5 rounded-2xl text-xs sm:text-sm cursor-pointer" title="Toggle Voice, Music & SFX">
+                        🔊 Audio ON
+                    </button>
+                    <button id="btn-cam-left" class="btn-roblox bg-white/95 border-3 border-slate-900 text-slate-900 font-black px-2.5 py-1.5 rounded-2xl text-xs sm:text-sm cursor-pointer" title="Turn Camera Left">
+                        ↺
+                    </button>
+                    <button id="btn-cam-right" class="btn-roblox bg-white/95 border-3 border-slate-900 text-slate-900 font-black px-2.5 py-1.5 rounded-2xl text-xs sm:text-sm cursor-pointer" title="Turn Camera Right">
+                        ↻
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- DOCKED / TOGGLEABLE LIVE 9-TEAM PROGRESS SCOREBOARD DRAWER -->
+        <div id="live-scoreboard-panel" class="hidden pointer-events-auto fixed top-28 right-3 sm:right-4 z-30 w-[330px] sm:w-[410px] max-h-[58vh] bg-white/95 border-4 border-slate-900 rounded-3xl p-3 shadow-2xl flex flex-col">
+            <div class="flex items-center justify-between border-b-2 border-slate-200 pb-1.5 mb-2">
+                <span class="font-black text-slate-900 text-base sm:text-lg">🏆 Live 9-Team Progress</span>
+                <button id="btn-close-scoreboard" class="bg-slate-200 hover:bg-slate-300 font-black text-slate-800 px-2.5 py-0.5 rounded-xl text-sm cursor-pointer">✕</button>
+            </div>
+            <div id="live-scoreboard-rows" class="flex flex-col gap-1.5 overflow-y-auto custom-scroll pr-1 text-xs sm:text-sm">
+                <!-- Populated dynamically in real time for Teams 1–9 -->
+            </div>
+        </div>
+
+        <!-- BOTTOM-LEFT: Virtual Touch Joystick for Smart TV & Mobile -->
+        <div id="joystick-zone" class="pointer-events-auto" title="Drag to Walk">
+            <div id="joystick-knob"></div>
+        </div>
+
+        <!-- BOTTOM-CENTER: Location / Team Instance Pill -->
+        <div class="fixed bottom-4 left-1/2 -translate-x-1/2 pointer-events-none hidden md:flex items-center gap-2 bg-slate-900/85 text-white border-2 border-white/40 px-4 py-1.5 rounded-full text-sm font-bold">
+            <span id="bottom-team-area" class="text-amber-300 font-black">Team 1 World</span>
+            <span class="opacity-50">•</span>
+            <span>📍 <span id="area-indicator" class="text-sky-300 font-extrabold">Living Room</span></span>
+            <span class="opacity-50">|</span>
+            <span>Drag screen to rotate • Tap items or Interact</span>
+        </div>
+
+        <!-- BOTTOM-RIGHT: Big Smart TV Interact / Cook Action Button -->
+        <div class="fixed bottom-6 right-6 pointer-events-auto flex flex-col items-end gap-2 z-30">
+            <button id="btn-interact" class="btn-roblox bg-gradient-to-b from-emerald-400 to-green-600 border-4 border-slate-900 text-white font-black text-xl sm:text-2xl md:text-3xl px-7 py-5 sm:px-9 sm:py-6 rounded-3xl flex items-center gap-3 cursor-pointer opacity-75">
+                <span id="btn-interact-icon" class="text-3xl sm:text-4xl">✋</span>
+                <span id="btn-interact-label">INTERACT</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- 3. TEAM WINNING CELEBRATION & 9-TEAM FINAL LEADERBOARD    -->
+    <!-- ========================================================= -->
+    <div id="win-screen" class="hidden fixed inset-0 z-50 flex flex-col justify-between items-center p-4 sm:p-6 pointer-events-none bg-gradient-to-b from-indigo-900/45 via-transparent to-purple-950/80 overflow-y-auto custom-scroll">
+        <!-- Top Celebration Banner -->
+        <div class="text-center pop-in mt-1">
+            <div class="inline-block bg-yellow-300 border-4 border-slate-900 px-5 py-1 rounded-full shadow-xl mb-1.5">
+                <span class="text-slate-900 font-black text-sm sm:text-lg">⭐⭐⭐ TEAM MAGICAL SOUP COMPLETE! ⭐⭐⭐</span>
+            </div>
+            <h1 id="win-team-title" class="text-3xl sm:text-5xl md:text-6xl font-black text-yellow-300 text-outline tracking-wide">
+                CONGRATULATIONS, TEAM 1!
+            </h1>
+            <p class="text-white text-lg sm:text-2xl md:text-3xl font-extrabold mt-1 drop-shadow-lg">
+                You worked together and made a delicious magical soup!
+            </p>
+        </div>
+
+        <!-- Bottom Score, Team Members, Final 9-Team Leaderboard & Play Again -->
+        <div class="pointer-events-auto bg-white/95 border-4 border-slate-900 rounded-3xl p-4 sm:p-5 shadow-2xl flex flex-col items-center gap-3 max-w-3xl w-full mb-1 pop-in">
+            <div class="flex flex-wrap items-center justify-center gap-4 sm:gap-8">
+                <div class="text-center">
+                    <div class="text-slate-500 font-extrabold text-xs uppercase tracking-wider">Team Score</div>
+                    <div id="final-score-display" class="text-3xl sm:text-4xl font-black text-emerald-600">1250 PTS</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-slate-500 font-extrabold text-xs uppercase tracking-wider">Completion Time</div>
+                    <div id="final-time-display" class="text-3xl sm:text-4xl font-black text-sky-600">01:45</div>
+                </div>
+                <div id="win-teammates-badges" class="flex flex-wrap justify-center gap-1.5">
+                    <!-- Team member badges -->
+                </div>
+            </div>
+
+            <!-- Live 9-Team Final Leaderboard Table -->
+            <div class="w-full bg-slate-100 border-3 border-slate-900 rounded-2xl p-2.5 max-h-52 overflow-y-auto custom-scroll">
+                <div class="flex items-center justify-between mb-1.5 px-1">
+                    <span class="font-black text-slate-900 text-sm sm:text-base">🏆 FINAL 9-TEAM CLASSROOM LEADERBOARD</span>
+                    <span class="text-xs font-bold text-slate-500">Ranked by: Finished → Fastest Time → Score</span>
+                </div>
+                <div id="final-leaderboard-rows" class="flex flex-col gap-1 text-xs sm:text-sm">
+                    <!-- Ranked 1 to 9 rows populated dynamically -->
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-center gap-3 w-full">
+                <button id="btn-play-again" class="btn-roblox flex-1 min-w-[200px] bg-gradient-to-b from-sky-400 to-blue-600 hover:from-sky-300 hover:to-blue-500 border-4 border-slate-900 text-white font-black text-xl sm:text-2xl py-3 rounded-2xl tracking-wider cursor-pointer">
+                    🔄 PLAY AGAIN / LOBBY
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    /**
+     * ============================================================================
+     * THE MAGICAL SOUP ADVENTURE 🍲 — 9-TEAM COOPERATIVE MULTIPLAYER EDITION
+     * Features:
+     *  - Spoken Web Speech API (TTS) Instructions + Replay Voice + Web Audio SFX
+     *  - 9 Independent Teams (Teams 1–9) with Private Isolated Game Worlds
+     *  - Real-time Firebase Firestore Sync + Single-Device Classroom AI Simulator
+     *  - Live 3D Teammate Avatars, Shared Inventory, Synchronized Kitchen & Leaderboard
+     * ============================================================================
+     */
+
+    // ============================================================================
+    // 1. WEB AUDIO SFX + SPOKEN VOICE ENGINE (WEB SPEECH API TTS)
+    // ============================================================================
+    class SoundAndVoiceEngine {
+        constructor() {
+            this.ctx = null;
+            this.muted = false;
+            this.bgmInterval = null;
+            this.stepTimer = 0;
+            this.lastSpokenText = "Let's make a delicious soup! Work with your team to find all six ingredients!";
+            this.preferredVoice = null;
+
+            if ('speechSynthesis' in window) {
+                const loadVoices = () => {
+                    const voices = window.speechSynthesis.getVoices();
+                    this.preferredVoice =
+                        voices.find(v => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Natural'))) ||
+                        voices.find(v => v.lang.startsWith('en')) ||
+                        null;
+                };
+                loadVoices();
+                window.speechSynthesis.onvoiceschanged = loadVoices;
+            }
+        }
+
+        init() {
+            if (!this.ctx) {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioCtx();
+            }
+            if (this.ctx.state === 'suspended') {
+                this.ctx.resume();
+            }
+        }
+
+        toggleMute() {
+            this.muted = !this.muted;
+            if (this.muted && 'speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
+            return this.muted;
+        }
+
+        speak(text, interrupt = true) {
+            if (!text) return;
+            this.lastSpokenText = text;
+            if (this.muted || !('speechSynthesis' in window)) return;
+            try {
+                if (interrupt) {
+                    window.speechSynthesis.cancel();
+                }
+                const utter = new SpeechSynthesisUtterance(text);
+                if (this.preferredVoice) utter.voice = this.preferredVoice;
+                utter.lang = 'en-US';
+                utter.rate = 0.94;  // Clear, gentle pace for elementary EFL students
+                utter.pitch = 1.12; // Warm, friendly tone
+                utter.volume = 1.0;
+                window.speechSynthesis.speak(utter);
+            } catch (e) {
+                // Ignore speech errors on restricted browsers
+            }
+        }
+
+        replayLast() {
+            if (this.lastSpokenText) {
+                this.speak(this.lastSpokenText, true);
+            }
+        }
+
+        playTone(freq, type = 'sine', duration = 0.2, volume = 0.18, delay = 0) {
+            if (this.muted) return;
+            this.init();
+            const now = this.ctx.currentTime + delay;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, now);
+            gain.gain.setValueAtTime(0.001, now);
+            gain.gain.exponentialRampToValueAtTime(volume, now + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + duration + 0.02);
+        }
+
+        playSuccess() {
+            this.playTone(523.25, 'triangle', 0.16, 0.22, 0.00);
+            this.playTone(659.25, 'triangle', 0.16, 0.22, 0.08);
+            this.playTone(783.99, 'triangle', 0.20, 0.22, 0.16);
+            this.playTone(1046.5, 'sine',     0.35, 0.25, 0.24);
+        }
+
+        playWrong() {
+            this.playTone(250, 'sawtooth', 0.18, 0.13, 0.00);
+            this.playTone(185, 'sawtooth', 0.26, 0.13, 0.14);
+        }
+
+        playStep() {
+            if (this.muted) return;
+            this.playTone(145 + Math.random() * 40, 'triangle', 0.06, 0.04, 0);
+        }
+
+        playSplash() {
+            for (let i = 0; i < 10; i++) {
+                this.playTone(420 + Math.random() * 750, 'sine', 0.14, 0.085, i * 0.13);
+            }
+        }
+
+        playBubble() {
+            for (let i = 0; i < 12; i++) {
+                const f = 260 + Math.random() * 380;
+                this.playTone(f, 'sine', 0.13, 0.11, i * 0.17);
+            }
+        }
+
+        playVictory() {
+            const notes = [
+                [523.25, 0.00, 0.18],
+                [523.25, 0.18, 0.18],
+                [523.25, 0.36, 0.18],
+                [659.25, 0.54, 0.32],
+                [587.33, 0.88, 0.22],
+                [659.25, 1.12, 0.22],
+                [783.99, 1.36, 0.45],
+                [1046.5, 1.85, 0.70]
+            ];
+            notes.forEach(([f, d, dur]) => this.playTone(f, 'triangle', dur, 0.25, d));
+        }
+
+        startBGM() {
+            if (this.bgmInterval) return;
+            const melody = [
+                523.25, 659.25, 783.99, 659.25,
+                587.33, 698.46, 880.00, 698.46,
+                523.25, 659.25, 783.99, 1046.5,
+                880.00, 783.99, 659.25, 587.33
+            ];
+            let idx = 0;
+            this.bgmInterval = setInterval(() => {
+                if (!this.muted && this.ctx && this.ctx.state === 'running') {
+                    this.playTone(melody[idx % melody.length], 'sine', 0.26, 0.032, 0);
+                    idx++;
+                }
+            }, 440);
+        }
+    }
+
+    const sound = new SoundAndVoiceEngine();
+
+    // ============================================================================
+    // 2. GAME DATA: 9 TEAMS, 6 ANIME CHARACTERS, 6 INGREDIENTS & 13 DISTRACTORS
+    // ============================================================================
+    const TEAMS_META = [
+        { id: 1, name: 'Team 1', label: 'Ruby Foxes',     hex: '#ef4444', bgClass: 'bg-red-500',     borderClass: 'border-red-600',     lightBg: 'bg-red-50',     area: 'Kitchen & Garden #1' },
+        { id: 2, name: 'Team 2', label: 'Ocean Dolphins', hex: '#3b82f6', bgClass: 'bg-blue-500',    borderClass: 'border-blue-600',    lightBg: 'bg-blue-50',    area: 'Kitchen & Garden #2' },
+        { id: 3, name: 'Team 3', label: 'Emerald Frogs',  hex: '#10b981', bgClass: 'bg-emerald-500', borderClass: 'border-emerald-600', lightBg: 'bg-emerald-50', area: 'Kitchen & Garden #3' },
+        { id: 4, name: 'Team 4', label: 'Sunny Lions',    hex: '#f59e0b', bgClass: 'bg-amber-500',   borderClass: 'border-amber-600',   lightBg: 'bg-amber-50',   area: 'Kitchen & Garden #4' },
+        { id: 5, name: 'Team 5', label: 'Royal Owls',     hex: '#8b5cf6', bgClass: 'bg-violet-500',  borderClass: 'border-violet-600',  lightBg: 'bg-violet-50',  area: 'Kitchen & Garden #5' },
+        { id: 6, name: 'Team 6', label: 'Tiger Sparks',   hex: '#f97316', bgClass: 'bg-orange-500',  borderClass: 'border-orange-600',  lightBg: 'bg-orange-50',  area: 'Kitchen & Garden #6' },
+        { id: 7, name: 'Team 7', label: 'Sakura Bunnies', hex: '#ec4899', bgClass: 'bg-pink-500',    borderClass: 'border-pink-600',    lightBg: 'bg-pink-50',    area: 'Kitchen & Garden #7' },
+        { id: 8, name: 'Team 8', label: 'Aqua Turtles',   hex: '#14b8a6', bgClass: 'bg-teal-500',    borderClass: 'border-teal-600',    lightBg: 'bg-teal-50',    area: 'Kitchen & Garden #8' },
+        { id: 9, name: 'Team 9', label: 'Indigo Stars',   hex: '#6366f1', bgClass: 'bg-indigo-500',  borderClass: 'border-indigo-600',  lightBg: 'bg-indigo-50',  area: 'Kitchen & Garden #9' }
+    ];
+
+    const CLASSROOM_NAMES = [
+        'Leo', 'Mia', 'Noah', 'Emma', 'Lucas', 'Chloe', 'Ethan', 'Lily',
+        'Liam', 'Zoe', 'Aiden', 'Nora', 'Mason', 'Aria', 'Owen', 'Ella',
+        'Caleb', 'Maya', 'Ryan', 'Eva', 'Max', 'Ruby', 'Sam', 'Luna'
+    ];
+
+    const CHARACTERS = [
+        {
+            id: 'sora', name: 'Sora', gender: 'Boy', desc: 'Blue Hoodie & Spiky Dark-Blue Hair',
+            hairStyle: 'spiky', hairColor: '#1e3a8a', eyeColor: '#2563eb', skinColor: '#ffdfc4',
+            shirtColor: '#2563eb', pantsColor: '#1e293b', shoeColor: '#ffffff', accentColor: '#38bdf8'
+        },
+        {
+            id: 'mina', name: 'Mina', gender: 'Girl', desc: 'Pink Sailor Dress & Twin Tails',
+            hairStyle: 'pigtails', hairColor: '#f472b6', eyeColor: '#db2777', skinColor: '#ffe4d0',
+            shirtColor: '#f43f5e', pantsColor: '#fbcfe8', shoeColor: '#ffffff', accentColor: '#fde047'
+        },
+        {
+            id: 'ren', name: 'Ren', gender: 'Boy', desc: 'Green Explorer Vest & Brown Swept Hair',
+            hairStyle: 'swept', hairColor: '#78350f', eyeColor: '#15803d', skinColor: '#f5cfa0',
+            shirtColor: '#16a34a', pantsColor: '#334155', shoeColor: '#d97706', accentColor: '#facc15'
+        },
+        {
+            id: 'yuki', name: 'Yuki', gender: 'Girl', desc: 'Purple Star Sweater & Lavender Bob',
+            hairStyle: 'bob', hairColor: '#a855f7', eyeColor: '#7e22ce', skinColor: '#ffe8d6',
+            shirtColor: '#7c3aed', pantsColor: '#ddd6fe', shoeColor: '#1e293b', accentColor: '#facc15'
+        },
+        {
+            id: 'kai', name: 'Kai', gender: 'Boy', desc: 'Red Sporty Jacket & Orange Headband',
+            hairStyle: 'headband', hairColor: '#1e293b', eyeColor: '#ea580c', skinColor: '#f8d5b8',
+            shirtColor: '#ef4444', pantsColor: '#0f172a', shoeColor: '#f97316', accentColor: '#f97316'
+        },
+        {
+            id: 'hana', name: 'Hana', gender: 'Girl', desc: 'Yellow Sun Dress & Golden Wavy Hair',
+            hairStyle: 'wavy', hairColor: '#eab308', eyeColor: '#0284c7', skinColor: '#ffdfc4',
+            shirtColor: '#facc15', pantsColor: '#fef08a', shoeColor: '#ffffff', accentColor: '#fb7185'
+        }
+    ];
+
+    // 6 Required Soup Ingredients
+    const REQUIRED_INGREDIENTS = [
+        { id: 'carrots',  name: 'Carrot',   speechName: 'a carrot',  icon: '🥕', category: 'base',    pos: [-13.5, 0.55, 11.8], zone: 'Garden',      chunkColor: 0xf97316 },
+        { id: 'potatoes', name: 'Potatoes', speechName: 'potatoes',  icon: '🥔', category: 'base',    pos: [-16.5, 0.55, 6.5],  zone: 'Garden',      chunkColor: 0xd97706 },
+        { id: 'onions',   name: 'Onions',   speechName: 'onions',    icon: '🧅', category: 'base',    pos: [-11.5, 0.55, 6.2],  zone: 'Garden',      chunkColor: 0xe879f9 },
+        { id: 'cheese',   name: 'Cheese',   speechName: 'cheese',    icon: '🧀', category: 'topping', pos: [4.5,   1.35, -3.5], zone: 'Living Room', chunkColor: 0xfacc15 },
+        { id: 'stone',    name: 'Stone',    speechName: 'a stone',   icon: '🪨', category: 'base',    pos: [14.5,  0.55, 9.2],  zone: 'Backyard',    chunkColor: 0x64748b },
+        { id: 'bread',    name: 'Bread',    speechName: 'bread',     icon: '🍞', category: 'topping', pos: [15.0,  1.25, 2.5],  zone: 'Backyard',    chunkColor: 0xd97706 }
+    ];
+
+    // 13 Distractor Items placed across House, Garden, and Backyard
+    const DISTRACTOR_ITEMS = [
+        { id: 'tomatoes', name: 'Tomatoes',        icon: '🍅', pos: [-15.2, 0.55, 13.4] },
+        { id: 'apples',   name: 'Apples',          icon: '🍎', pos: [-18.2, 0.55, 10.5] },
+        { id: 'bananas',  name: 'Bananas',         icon: '🍌', pos: [5.6,   1.35, -2.9] },
+        { id: 'cabbage',  name: 'Cabbage',         icon: '🥬', pos: [-11.6, 0.55, 13.0] },
+        { id: 'mushrooms',name: 'Mushrooms',       icon: '🍄', pos: [16.5,  0.55, 7.2]  },
+        { id: 'corn',     name: 'Corn',            icon: '🌽', pos: [-17.5, 0.55, 4.2]  },
+        { id: 'flowers',  name: 'Flowers',         icon: '🌻', pos: [-9.8,  0.65, 14.8] },
+        { id: 'leaves',   name: 'Leaves',          icon: '🍃', pos: [12.0,  0.45, 14.0] },
+        { id: 'eggs',     name: 'Eggs',            icon: '🥚', pos: [-7.2,  1.45, -7.8] },
+        { id: 'fish',     name: 'Fish',            icon: '🐟', pos: [17.6,  0.55, 13.5] },
+        { id: 'candy',    name: 'Candy',           icon: '🍬', pos: [3.4,   1.35, -3.9] },
+        { id: 'wood',     name: 'Wood',            icon: '🪵', pos: [13.2,  0.55, 5.2]  },
+        { id: 'bottles',  name: 'Plastic bottles', icon: '🧴', pos: [18.5,  0.55, 10.2] }
+    ];
+
+    // ============================================================================
+    // 3. MULTIPLAYER STATE & FIREBASE / LOCAL CLASSROOM SYNC MANAGER
+    // ============================================================================
+    function createEmptyTeamState(teamId) {
+        return {
+            teamId,
+            status: 'LOBBY', // 'LOBBY' | 'PLAYING' | 'FINISHED'
+            startedAt: 0,
+            finishedAt: 0,
+            elapsedSec: 0,
+            score: 0,
+            allSixBonusAwarded: false,
+            collected: {},       // { carrots: { byName, washed, inPot } }
+            toppingsPlaced: {},  // { cheese: true/false, bread: true/false } (on prep counter)
+            soupCooked: false,
+            appliedToppings: {}, // { cheese: true/false, bread: true/false } (on finished soup)
+            lastEvent: '',
+            lastEventId: 0
+        };
+    }
+
+    const MP = {
+        db: null,
+        auth: null,
+        userId: 'player_' + Math.random().toString(36).slice(2, 10),
+        roomCode: 'CLASS-1',
+        playerName: '',
+        charId: 'sora',
+        myTeamId: null,
+        isReady: false,
+        useFirebase: false,
+        simClassmates: false,
+        simInterval: null,
+        posSyncInterval: null,
+        unsubMembers: null,
+        unsubTeams: null,
+        allMembers: {}, // { [uid]: { uid, name, charId, teamId, ready, x, z, rotY, carryingId, lastSeen } }
+        teamsData: {},  // { [1..9]: teamState }
+        remoteAvatars: {} // { [uid]: { group, parts, targetPos, targetRot, carryingId, labelEl } }
+    };
+
+    for (let t = 1; t <= 9; t++) {
+        MP.teamsData[t] = createEmptyTeamState(t);
+    }
+
+    window.initFirebaseMultiplayer = async function () {
+        try {
+            if (!window.FB || typeof __firebase_config === 'undefined') {
+                updateSyncBadge(false);
+                return;
+            }
+            const firebaseConfig = JSON.parse(__firebase_config);
+            const app = window.FB.initializeApp(firebaseConfig);
+            MP.auth = window.FB.getAuth(app);
+            MP.db = window.FB.getFirestore(app);
+
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await window.FB.signInWithCustomToken(MP.auth, __initial_auth_token);
+            } else {
+                await window.FB.signInAnonymously(MP.auth);
+            }
+            if (MP.auth.currentUser) {
+                MP.userId = MP.auth.currentUser.uid;
+            }
+            MP.useFirebase = true;
+            updateSyncBadge(true);
+            subscribeToRoom(MP.roomCode);
+        } catch (err) {
+            MP.useFirebase = false;
+            updateSyncBadge(false);
+        }
+    };
+
+    function updateSyncBadge(isCloud) {
+        const el = document.getElementById('sync-status-pill');
+        if (!el) return;
+        if (isCloud) {
+            el.className = 'bg-emerald-100 border-2 border-emerald-500 text-emerald-900 font-extrabold px-3 py-1 rounded-full text-xs sm:text-sm';
+            el.textContent = '🟢 Live Multi-Device Sync';
+        } else {
+            el.className = 'bg-sky-100 border-2 border-sky-500 text-sky-900 font-extrabold px-3 py-1 rounded-full text-xs sm:text-sm';
+            el.textContent = '🔵 Classroom Local / AI Mode';
+        }
+    }
+
+    function getAppId() {
+        return typeof __app_id !== 'undefined' ? __app_id : 'magical-soup-9teams';
+    }
+
+    function subscribeToRoom(roomCode) {
+        MP.roomCode = (roomCode || 'CLASS-1').trim().toUpperCase() || 'CLASS-1';
+        document.getElementById('lobby-room-badge').textContent = MP.roomCode;
+
+        if (!MP.useFirebase || !MP.db) {
+            renderLobbyTeams();
+            return;
+        }
+
+        if (MP.unsubMembers) MP.unsubMembers();
+        if (MP.unsubTeams) MP.unsubTeams();
+
+        const appId = getAppId();
+        const membersCol = window.FB.collection(MP.db, 'artifacts', appId, 'public', 'data', `soup_members_${MP.roomCode}`);
+        const teamsCol = window.FB.collection(MP.db, 'artifacts', appId, 'public', 'data', `soup_teams_${MP.roomCode}`);
+
+        MP.unsubMembers = window.FB.onSnapshot(membersCol, (snap) => {
+            const nextMembers = {};
+            snap.forEach(docSnap => {
+                nextMembers[docSnap.id] = docSnap.data();
+            });
+            // Preserve local AI bots if enabled
+            Object.keys(MP.allMembers).forEach(k => {
+                if (k.startsWith('ai_')) nextMembers[k] = MP.allMembers[k];
+            });
+            MP.allMembers = nextMembers;
+            onRoomStateUpdated();
+        }, () => {});
+
+        MP.unsubTeams = window.FB.onSnapshot(teamsCol, (snap) => {
+            snap.forEach(docSnap => {
+                const tid = Number(docSnap.id);
+                if (tid >= 1 && tid <= 9) {
+                    MP.teamsData[tid] = { ...createEmptyTeamState(tid), ...docSnap.data() };
+                }
+            });
+            onRoomStateUpdated();
+        }, () => {});
+    }
+
+    async function syncMyMemberRecord(extra = {}) {
+        const record = {
+            uid: MP.userId,
+            name: MP.playerName || 'Student',
+            charId: CHARACTERS[selectedCharIndex].id,
+            teamId: MP.myTeamId,
+            ready: MP.isReady,
+            x: playerGroup ? Number(playerGroup.position.x.toFixed(2)) : 2.5,
+            z: playerGroup ? Number(playerGroup.position.z.toFixed(2)) : -1.5,
+            rotY: playerGroup ? Number(playerGroup.rotation.y.toFixed(2)) : 0,
+            carryingId: STATE.carriedItem ? STATE.carriedItem.id : null,
+            lastSeen: Date.now(),
+            ...extra
+        };
+        MP.allMembers[MP.userId] = record;
+        onRoomStateUpdated();
+
+        if (MP.useFirebase && MP.db) {
+            try {
+                const ref = window.FB.doc(MP.db, 'artifacts', getAppId(), 'public', 'data', `soup_members_${MP.roomCode}`, MP.userId);
+                await window.FB.setDoc(ref, record, { merge: true });
+            } catch (e) {}
+        }
+    }
+
+    async function mutateTeamState(teamId, mutatorFn) {
+        if (!teamId) return;
+        const current = JSON.parse(JSON.stringify(MP.teamsData[teamId] || createEmptyTeamState(teamId)));
+        const updated = mutatorFn(current);
+        if (!updated) return;
+
+        MP.teamsData[teamId] = updated;
+        onRoomStateUpdated();
+
+        if (MP.useFirebase && MP.db) {
+            try {
+                const ref = window.FB.doc(MP.db, 'artifacts', getAppId(), 'public', 'data', `soup_teams_${MP.roomCode}`, String(teamId));
+                await window.FB.setDoc(ref, updated, { merge: true });
+            } catch (e) {}
+        }
+    }
+
+    // ============================================================================
+    // 4. THREE.JS SCENE, LIGHTING, CAMERA & PROCEDURAL TEXTURES
+    // ============================================================================
+    let scene, camera, renderer;
+    let selectedCharIndex = 0;
+    let previewCharacterMesh = null;
+    let playerGroup = null;
+    let playerParts = {};
+
+    const STATE = {
+        phase: 'SELECT', // 'SELECT' | 'LOBBY' | 'PLAYING' | 'WIN'
+        carriedItem: null, // { id, name, speechName, icon, category, chunkColor, washed }
+        score: 0,
+        mistakes: 0,
+        walkTime: 0,
+        camYaw: 0,
+        camPitch: 0.36,
+        camDist: 8.5,
+        nearestInteractable: null,
+        animatingAction: false,
+        carriedMesh: null,
+        lastProcessedEventId: 0,
+        waterDrops: [],
+        steamPuffs: [],
+        potChunks: [],
+        prepMeshes: {},
+        potSoupMesh: null,
+        potCheeseMesh: null,
+        potBreadMesh: null,
+        burnerMesh: null,
+        sinkCheckMesh: null,
+        guideArrow: null,
+        victoryStars: [],
+        worldItems: [],
+        colliders: []
+    };
+
+    const INPUT = {
+        joyX: 0,
+        joyY: 0,
+        keys: {},
+        isDraggingCam: false,
+        lastTouchX: 0,
+        lastTouchY: 0
+    };
+
+    function createRobloxStudTexture(baseHex, studHex) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 128;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = baseHex;
+        ctx.fillRect(0, 0, 128, 128);
+
+        ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, 0, 64, 64);
+        ctx.strokeRect(64, 0, 64, 64);
+        ctx.strokeRect(0, 64, 64, 64);
+        ctx.strokeRect(64, 64, 64, 64);
+
+        const positions = [[32, 32], [96, 32], [32, 96], [96, 96]];
+        positions.forEach(([cx, cy]) => {
+            ctx.fillStyle = 'rgba(0,0,0,0.12)';
+            ctx.beginPath();
+            ctx.arc(cx + 2, cy + 2, 14, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = studHex;
+            ctx.beginPath();
+            ctx.arc(cx, cy, 14, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = 'rgba(255,255,255,0.22)';
+            ctx.beginPath();
+            ctx.arc(cx - 4, cy - 4, 5, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.wrapT = THREE.RepeatWrapping;
+        tex.repeat.set(36, 36);
+        return tex;
+    }
+
+    function initThree() {
+        const container = document.getElementById('game-container');
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x7dd3fc);
+        scene.fog = new THREE.FogExp2(0x7dd3fc, 0.01);
+
+        camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 160);
+        camera.position.set(0, 4, 8);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.appendChild(renderer.domElement);
+
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x86efac, 0.88);
+        hemiLight.position.set(0, 30, 0);
+        scene.add(hemiLight);
+
+        const dirLight = new THREE.DirectionalLight(0xfffbeb, 0.92);
+        dirLight.position.set(18, 32, 20);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        dirLight.shadow.camera.near = 2;
+        dirLight.shadow.camera.far = 85;
+        const d = 28;
+        dirLight.shadow.camera.left = -d;
+        dirLight.shadow.camera.right = d;
+        dirLight.shadow.camera.top = d;
+        dirLight.shadow.camera.bottom = -d;
+        scene.add(dirLight);
+
+        const kitchenLight = new THREE.PointLight(0xffedd5, 0.65, 18);
+        kitchenLight.position.set(-4.5, 4.2, -5.5);
+        scene.add(kitchenLight);
+
+        const livingLight = new THREE.PointLight(0xfef9c3, 0.65, 18);
+        livingLight.position.set(4.5, 4.2, -3.5);
+        scene.add(livingLight);
+
+        buildWorldEnvironment();
+        spawnWorldCollectibles();
+        setupCharacterSelectionUI();
+        updatePreviewCharacter();
+    }
+
+    function createAnimeFaceTexture(charData) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 256;
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = charData.skinColor;
+        ctx.fillRect(0, 0, 256, 256);
+
+        ctx.fillStyle = 'rgba(255, 115, 145, 0.36)';
+        ctx.beginPath();
+        ctx.ellipse(56, 162, 22, 12, 0, 0, Math.PI * 2);
+        ctx.ellipse(200, 162, 22, 12, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        const drawEye = (cx) => {
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.ellipse(cx, 125, 26, 30, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = charData.eyeColor;
+            ctx.beginPath();
+            ctx.ellipse(cx, 128, 19, 24, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.ellipse(cx, 130, 10, 13, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(cx - 7, 118, 6.5, 0, Math.PI * 2);
+            ctx.arc(cx + 8, 136, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 6;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.arc(cx, 124, 27, Math.PI * 1.12, Math.PI * 1.88);
+            ctx.stroke();
+
+            ctx.strokeStyle = charData.hairColor;
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.moveTo(cx - 20, 86);
+            ctx.quadraticCurveTo(cx, 80, cx + 20, 87);
+            ctx.stroke();
+        };
+
+        drawEye(82);
+        drawEye(174);
+
+        ctx.strokeStyle = '#9f1239';
+        ctx.fillStyle = '#fb7185';
+        ctx.lineWidth = 4.5;
+        ctx.beginPath();
+        ctx.arc(128, 174, 16, 0.1 * Math.PI, 0.9 * Math.PI);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.needsUpdate = true;
+        return tex;
+    }
+
+    function createNameTagSprite(nameText, teamColorHex) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 320;
+        canvas.height = 80;
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+        ctx.beginPath();
+        ctx.roundRect(16, 12, 288, 56, 28);
+        ctx.fill();
+
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = teamColorHex || '#facc15';
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 30px Fredoka, Nunito, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(nameText, 160, 41);
+
+        const tex = new THREE.CanvasTexture(canvas);
+        const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+        const sprite = new THREE.Sprite(mat);
+        sprite.scale.set(2.4, 0.6, 1);
+        sprite.position.set(0, 3.85, 0);
+        return sprite;
+    }
+
+    function createAnimeCharacter(charData, overheadName = null, teamColorHex = null) {
+        const root = new THREE.Group();
+
+        const skinMat = new THREE.MeshStandardMaterial({ color: charData.skinColor, roughness: 0.6 });
+        const shirtMat = new THREE.MeshStandardMaterial({ color: charData.shirtColor, roughness: 0.5 });
+        const pantsMat = new THREE.MeshStandardMaterial({ color: charData.pantsColor, roughness: 0.6 });
+        const shoeMat  = new THREE.MeshStandardMaterial({ color: charData.shoeColor, roughness: 0.4 });
+        const hairMat  = new THREE.MeshStandardMaterial({ color: charData.hairColor, roughness: 0.45 });
+        const accMat   = new THREE.MeshStandardMaterial({ color: charData.accentColor, roughness: 0.4 });
+
+        const torso = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.15, 0.55), shirtMat);
+        torso.position.y = 1.45;
+        torso.castShadow = true;
+        root.add(torso);
+
+        const emblem = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.42, 0.58), accMat);
+        emblem.position.set(0, 1.55, 0);
+        root.add(emblem);
+
+        const faceTex = createAnimeFaceTexture(charData);
+        const headMaterials = [
+            skinMat, skinMat, hairMat, skinMat,
+            new THREE.MeshStandardMaterial({ map: faceTex, roughness: 0.5 }),
+            hairMat
+        ];
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.95, 0.95), headMaterials);
+        head.position.y = 2.55;
+        head.castShadow = true;
+        root.add(head);
+
+        const hairCap = new THREE.Mesh(new THREE.BoxGeometry(1.04, 0.32, 1.04), hairMat);
+        hairCap.position.set(0, 2.98, -0.02);
+        hairCap.castShadow = true;
+        root.add(hairCap);
+
+        const hairBack = new THREE.Mesh(new THREE.BoxGeometry(1.04, 0.85, 0.28), hairMat);
+        hairBack.position.set(0, 2.55, -0.45);
+        root.add(hairBack);
+
+        if (charData.hairStyle === 'spiky') {
+            for (let i = -1; i <= 1; i++) {
+                const spike = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.55, 5), hairMat);
+                spike.position.set(i * 0.28, 3.22, 0.05);
+                spike.rotation.z = -i * 0.28;
+                spike.rotation.x = 0.22;
+                root.add(spike);
+            }
+        } else if (charData.hairStyle === 'pigtails') {
+            [-0.68, 0.68].forEach((xSide, idx) => {
+                const tail = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.95, 0.32), hairMat);
+                tail.position.set(xSide, 2.55, -0.1);
+                tail.rotation.z = idx === 0 ? 0.25 : -0.25;
+                root.add(tail);
+                const tie = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 10), accMat);
+                tie.position.set(xSide * 0.85, 2.92, -0.05);
+                root.add(tie);
+            });
+        } else if (charData.hairStyle === 'swept') {
+            const bang = new THREE.Mesh(new THREE.BoxGeometry(1.08, 0.25, 0.45), hairMat);
+            bang.position.set(0.08, 2.92, 0.36);
+            bang.rotation.z = -0.18;
+            root.add(bang);
+        } else if (charData.hairStyle === 'bob') {
+            [-0.54, 0.54].forEach(xSide => {
+                const sideBob = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.78, 0.88), hairMat);
+                sideBob.position.set(xSide, 2.52, -0.02);
+                root.add(sideBob);
+            });
+            const bow = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.18, 0.16), accMat);
+            bow.position.set(0.35, 3.04, 0.38);
+            root.add(bow);
+        } else if (charData.hairStyle === 'headband') {
+            const band = new THREE.Mesh(new THREE.BoxGeometry(1.06, 0.16, 1.06), accMat);
+            band.position.set(0, 2.92, 0.02);
+            root.add(band);
+            for (let i = -1; i <= 1; i += 2) {
+                const tuft = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.45, 5), hairMat);
+                tuft.position.set(i * 0.22, 3.18, 0);
+                root.add(tuft);
+            }
+        } else if (charData.hairStyle === 'wavy') {
+            const longBack = new THREE.Mesh(new THREE.BoxGeometry(1.08, 1.45, 0.28), hairMat);
+            longBack.position.set(0, 2.1, -0.48);
+            root.add(longBack);
+            const pin = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 10), accMat);
+            pin.position.set(-0.44, 2.95, 0.42);
+            root.add(pin);
+        }
+
+        const leftArmPivot = new THREE.Group();
+        leftArmPivot.position.set(-0.72, 1.92, 0);
+        const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.95, 0.38), skinMat);
+        leftArm.position.y = -0.38;
+        leftArm.castShadow = true;
+        const leftSleeve = new THREE.Mesh(new THREE.BoxGeometry(0.41, 0.42, 0.41), shirtMat);
+        leftSleeve.position.y = -0.15;
+        leftArmPivot.add(leftArm, leftSleeve);
+        root.add(leftArmPivot);
+
+        const rightArmPivot = new THREE.Group();
+        rightArmPivot.position.set(0.72, 1.92, 0);
+        const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.95, 0.38), skinMat);
+        rightArm.position.y = -0.38;
+        rightArm.castShadow = true;
+        const rightSleeve = new THREE.Mesh(new THREE.BoxGeometry(0.41, 0.42, 0.41), shirtMat);
+        rightSleeve.position.y = -0.15;
+        rightArmPivot.add(rightArm, rightSleeve);
+        root.add(rightArmPivot);
+
+        const leftLegPivot = new THREE.Group();
+        leftLegPivot.position.set(-0.27, 0.88, 0);
+        const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.72, 0.44), pantsMat);
+        leftLeg.position.y = -0.34;
+        leftLeg.castShadow = true;
+        const leftShoe = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.22, 0.54), shoeMat);
+        leftShoe.position.set(0, -0.76, 0.05);
+        leftLegPivot.add(leftLeg, leftShoe);
+        root.add(leftLegPivot);
+
+        const rightLegPivot = new THREE.Group();
+        rightLegPivot.position.set(0.27, 0.88, 0);
+        const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.72, 0.44), pantsMat);
+        rightLeg.position.y = -0.34;
+        rightLeg.castShadow = true;
+        const rightShoe = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.22, 0.54), shoeMat);
+        rightShoe.position.set(0, -0.76, 0.05);
+        rightLegPivot.add(rightLeg, rightShoe);
+        root.add(rightLegPivot);
+
+        const carryAnchor = new THREE.Group();
+        carryAnchor.position.set(0, 1.55, 0.82);
+        root.add(carryAnchor);
+
+        if (overheadName) {
+            const tag = createNameTagSprite(overheadName, teamColorHex);
+            root.add(tag);
+        }
+
+        root.userData.parts = { leftArmPivot, rightArmPivot, leftLegPivot, rightLegPivot, head, carryAnchor };
+        return root;
+    }
+
+    // ============================================================================
+    // 5. BUILD COLORFUL 3D ROBLOX-STYLE HOUSE, KITCHEN, GARDEN & BACKYARD
+    // ============================================================================
+    function addCollider(x, z, w, d) {
+        STATE.colliders.push({
+            minX: x - w / 2,
+            maxX: x + w / 2,
+            minZ: z - d / 2,
+            maxZ: z + d / 2
+        });
+    }
+
+    function createBox(w, h, d, color, x, y, z, collide = false, roughness = 0.65) {
+        const mat = new THREE.MeshStandardMaterial({ color, roughness });
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+        mesh.position.set(x, y, z);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        scene.add(mesh);
+        if (collide) {
+            addCollider(x, z, w, d);
+        }
+        return mesh;
+    }
+
+    function buildWorldEnvironment() {
+        STATE.colliders = [];
+
+        const grassTex = createRobloxStudTexture('#4ade80', '#22c55e');
+        const grassGeo = new THREE.PlaneGeometry(90, 90);
+        const grassMat = new THREE.MeshStandardMaterial({ map: grassTex, roughness: 0.8 });
+        const grass = new THREE.Mesh(grassGeo, grassMat);
+        grass.rotation.x = -Math.PI / 2;
+        grass.receiveShadow = true;
+        scene.add(grass);
+
+        const fenceColor = 0xfef3c7;
+        for (let x = -21; x <= 21; x += 2) {
+            createBox(0.35, 1.4, 0.25, fenceColor, x, 0.7, 17.5, false);
+            createBox(0.35, 1.4, 0.25, fenceColor, x, 0.7, -14.5, false);
+        }
+        for (let z = -14; z <= 17; z += 2) {
+            createBox(0.25, 1.4, 0.35, fenceColor, -21.5, 0.7, z, false);
+            createBox(0.25, 1.4, 0.35, fenceColor, 21.5, 0.7, z, false);
+        }
+        createBox(43, 0.2, 0.2, 0xfde68a, 0, 1.0, 17.5, true);
+        createBox(43, 0.2, 0.2, 0xfde68a, 0, 1.0, -14.5, true);
+        createBox(0.2, 0.2, 32, 0xfde68a, -21.5, 1.0, 1.5, true);
+        createBox(0.2, 0.2, 32, 0xfde68a, 21.5, 1.0, 1.5, true);
+
+        const tile1 = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35 });
+        const tile2 = new THREE.MeshStandardMaterial({ color: 0xbae6fd, roughness: 0.35 });
+        for (let ix = -9; ix < 0; ix++) {
+            for (let iz = -11; iz < 1; iz++) {
+                const isAlt = (ix + iz) % 2 === 0;
+                const tile = new THREE.Mesh(new THREE.BoxGeometry(1, 0.12, 1), isAlt ? tile1 : tile2);
+                tile.position.set(ix + 0.5, 0.06, iz + 0.5);
+                tile.receiveShadow = true;
+                scene.add(tile);
+            }
+        }
+
+        const woodFloor = new THREE.Mesh(
+            new THREE.BoxGeometry(9, 0.12, 12),
+            new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.55 })
+        );
+        woodFloor.position.set(4.5, 0.06, -5);
+        woodFloor.receiveShadow = true;
+        scene.add(woodFloor);
+
+        const rug = new THREE.Mesh(
+            new THREE.BoxGeometry(4.6, 0.05, 3.6),
+            new THREE.MeshStandardMaterial({ color: 0xf43f5e, roughness: 0.8 })
+        );
+        rug.position.set(4.5, 0.14, -3.5);
+        rug.receiveShadow = true;
+        scene.add(rug);
+
+        const wallColor = 0xfef9c3;
+        const trimColor = 0x38bdf8;
+        createBox(18.4, 3.6, 0.4, wallColor, 0, 1.8, -11, true);
+        createBox(18.6, 0.3, 0.5, trimColor, 0, 3.65, -11, false);
+
+        createBox(0.4, 3.6, 12.4, wallColor, -9, 1.8, -5, true);
+        createBox(0.5, 0.3, 12.6, trimColor, -9, 3.65, -5, false);
+
+        createBox(0.4, 3.6, 6.5, wallColor, 9, 1.8, -7.75, true);
+        createBox(0.4, 3.6, 2.0, wallColor, 9, 1.8, 0.0, true);
+
+        createBox(7.5, 3.6, 0.4, wallColor, -5.25, 1.8, 1, true);
+        createBox(5.5, 3.6, 0.4, wallColor, 6.25, 1.8, 1, true);
+
+        createBox(0.4, 3.6, 3.2, wallColor, 0, 1.8, -9.4, true);
+        createBox(0.4, 3.6, 2.6, wallColor, 0, 1.8, -0.3, true);
+
+        // Refrigerator
+        createBox(1.4, 2.9, 1.3, 0x38bdf8, -7.9, 1.45, -9.9, true, 0.3);
+        createBox(0.1, 0.7, 0.12, 0xffffff, -7.25, 1.9, -9.5, false);
+        createBox(0.1, 0.5, 0.12, 0xffffff, -7.25, 0.9, -9.5, false);
+
+        // Kitchen Counter Row
+        createBox(5.4, 1.1, 1.3, 0xf8fafc, -4.4, 0.55, -10.1, true, 0.4);
+        createBox(5.5, 0.14, 1.4, 0x334155, -4.4, 1.15, -10.1, false, 0.3);
+
+        // Kitchen Sink
+        createBox(1.3, 0.25, 0.95, 0x94a3b8, -5.8, 1.18, -10.1, false, 0.2);
+        createBox(1.15, 0.1, 0.8, 0x38bdf8, -5.8, 1.22, -10.1, false, 0.1);
+        createBox(0.14, 0.65, 0.14, 0xe2e8f0, -5.8, 1.52, -10.55, false, 0.2);
+        createBox(0.14, 0.14, 0.42, 0xe2e8f0, -5.8, 1.82, -10.35, false, 0.2);
+
+        const checkGroup = new THREE.Group();
+        const c1 = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.45, 0.12), new THREE.MeshStandardMaterial({ color: 0x22c55e }));
+        c1.position.set(-0.15, 0, 0);
+        c1.rotation.z = 0.65;
+        const c2 = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.85, 0.12), new THREE.MeshStandardMaterial({ color: 0x22c55e }));
+        c2.position.set(0.22, 0.14, 0);
+        c2.rotation.z = -0.65;
+        checkGroup.add(c1, c2);
+        checkGroup.position.set(-5.8, 2.45, -10.1);
+        checkGroup.visible = false;
+        scene.add(checkGroup);
+        STATE.sinkCheckMesh = checkGroup;
+
+        // Stove & Cooking Pot
+        createBox(1.4, 1.15, 1.3, 0xe2e8f0, -3.0, 0.58, -10.1, true, 0.35);
+        const burner = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.55, 0.55, 0.08, 20),
+            new THREE.MeshStandardMaterial({ color: 0x1e293b, emissive: 0x000000 })
+        );
+        burner.position.set(-3.0, 1.18, -10.1);
+        scene.add(burner);
+        STATE.burnerMesh = burner;
+
+        const potMat = new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.45, roughness: 0.3 });
+        const potBody = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.52, 0.72, 24), potMat);
+        potBody.position.set(-3.0, 1.56, -10.1);
+        potBody.castShadow = true;
+        scene.add(potBody);
+        createBox(1.45, 0.1, 0.14, 0x334155, -3.0, 1.72, -10.1, false);
+
+        const soupMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.25, emissive: 0x000000 });
+        const soupLiquid = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.52, 0.08, 20), soupMat);
+        soupLiquid.position.set(-3.0, 1.76, -10.1);
+        scene.add(soupLiquid);
+        STATE.potSoupMesh = soupLiquid;
+
+        const cheeseTop = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.44, 0.46, 0.09, 16),
+            new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.4 })
+        );
+        cheeseTop.position.set(-3.0, 1.83, -10.1);
+        cheeseTop.visible = false;
+        scene.add(cheeseTop);
+        STATE.potCheeseMesh = cheeseTop;
+
+        const breadTop = new THREE.Mesh(
+            new THREE.BoxGeometry(0.46, 0.28, 0.32),
+            new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.6 })
+        );
+        breadTop.position.set(-2.35, 1.36, -9.85);
+        breadTop.rotation.y = 0.3;
+        breadTop.visible = false;
+        scene.add(breadTop);
+        STATE.potBreadMesh = breadTop;
+
+        // Kitchen Prep Counter / Island
+        createBox(2.6, 1.05, 1.2, 0xfef3c7, -5.8, 0.52, -7.8, true);
+        createBox(2.75, 0.14, 1.35, 0xf59e0b, -5.8, 1.1, -7.8, false);
+        createBox(1.2, 0.06, 0.75, 0xb45309, -5.4, 1.2, -7.8, false);
+
+        const prepCheese = createItemMesh('cheese');
+        prepCheese.scale.set(0.75, 0.75, 0.75);
+        prepCheese.position.set(-5.65, 1.36, -7.8);
+        prepCheese.visible = false;
+        scene.add(prepCheese);
+
+        const prepBread = createItemMesh('bread');
+        prepBread.scale.set(0.75, 0.75, 0.75);
+        prepBread.position.set(-5.1, 1.36, -7.8);
+        prepBread.visible = false;
+        scene.add(prepBread);
+        STATE.prepMeshes = { cheese: prepCheese, bread: prepBread };
+
+        // Living Room Furniture
+        createBox(2.4, 0.18, 1.5, 0x92400e, 4.5, 1.05, -3.5, true);
+        createBox(0.2, 1.0, 0.2, 0x78350f, 3.5, 0.5, -2.9, false);
+        createBox(0.2, 1.0, 0.2, 0x78350f, 5.5, 0.5, -2.9, false);
+        createBox(0.2, 1.0, 0.2, 0x78350f, 3.5, 0.5, -4.1, false);
+        createBox(0.2, 1.0, 0.2, 0x78350f, 5.5, 0.5, -4.1, false);
+
+        createBox(3.4, 0.65, 1.2, 0x3b82f6, 4.5, 0.4, -7.6, true);
+        createBox(3.4, 1.2, 0.35, 0x2563eb, 4.5, 0.9, -8.05, false);
+        createBox(0.35, 0.9, 1.2, 0x1d4ed8, 2.95, 0.65, -7.6, false);
+        createBox(0.35, 0.9, 1.2, 0x1d4ed8, 6.05, 0.65, -7.6, false);
+
+        createBox(1.8, 2.4, 0.6, 0xb45309, 7.6, 1.2, -9.8, true);
+        createBox(1.5, 0.35, 0.45, 0xef4444, 7.6, 0.8, -9.75, false);
+        createBox(1.5, 0.35, 0.45, 0x22c55e, 7.6, 1.4, -9.75, false);
+        createBox(1.5, 0.35, 0.45, 0xfacc15, 7.6, 2.0, -9.75, false);
+
+        // Garden & Backyard
+        for (let i = 0; i < 6; i++) {
+            createBox(1.4, 0.08, 1.1, 0xcbd5e1, 1.0, 0.04, 2.2 + i * 1.8, false);
+        }
+        createBox(8.5, 0.28, 3.2, 0x78350f, -14.2, 0.14, 12.2, false);
+        createBox(8.5, 0.28, 3.2, 0x78350f, -14.2, 0.14, 6.2, false);
+
+        createBox(2.8, 0.16, 1.5, 0xd97706, 15.0, 0.95, 2.5, true);
+        createBox(2.8, 0.14, 0.5, 0xb45309, 15.0, 0.52, 1.3, true);
+        createBox(2.8, 0.14, 0.5, 0xb45309, 15.0, 0.52, 3.7, true);
+
+        const pondRing = new THREE.Mesh(
+            new THREE.CylinderGeometry(2.1, 2.3, 0.45, 24),
+            new THREE.MeshStandardMaterial({ color: 0x94a3b8 })
+        );
+        pondRing.position.set(15.5, 0.22, 12.2);
+        scene.add(pondRing);
+        addCollider(15.5, 12.2, 3.6, 3.6);
+
+        const pondWater = new THREE.Mesh(
+            new THREE.CylinderGeometry(1.85, 1.85, 0.48, 24),
+            new THREE.MeshStandardMaterial({ color: 0x0ea5e9, roughness: 0.15 })
+        );
+        pondWater.position.set(15.5, 0.23, 12.2);
+        scene.add(pondWater);
+
+        const treeCoords = [
+            [-19, -11], [-14, -12], [13, -11], [19, -9],
+            [-19, 15],  [-7, 15],   [8, 15],   [19, 15]
+        ];
+        treeCoords.forEach(([tx, tz]) => {
+            createBox(0.8, 2.6, 0.8, 0x78350f, tx, 1.3, tz, true);
+            createBox(2.8, 2.2, 2.8, 0x22c55e, tx, 3.3, tz, false);
+            createBox(2.0, 1.5, 2.0, 0x4ade80, tx, 4.7, tz, false);
+        });
+
+        const flowerColors = [0xf43f5e, 0xfacc15, 0xa855f7, 0x38bdf8, 0xfb923c];
+        for (let i = 0; i < 24; i++) {
+            const fx = (Math.sin(i * 17.3) * 18);
+            const fz = 3.5 + (Math.abs(Math.cos(i * 9.1)) * 12.5);
+            if (Math.abs(fx - 1.0) < 2.2) continue;
+            const stem = new THREE.Mesh(
+                new THREE.BoxGeometry(0.1, 0.4, 0.1),
+                new THREE.MeshStandardMaterial({ color: 0x16a34a })
+            );
+            stem.position.set(fx, 0.2, fz);
+            const petal = new THREE.Mesh(
+                new THREE.BoxGeometry(0.32, 0.22, 0.32),
+                new THREE.MeshStandardMaterial({ color: flowerColors[i % flowerColors.length] })
+            );
+            petal.position.set(fx, 0.45, fz);
+            scene.add(stem, petal);
+        }
+
+        const arrowGroup = new THREE.Group();
+        const arrowCone = new THREE.Mesh(
+            new THREE.ConeGeometry(0.55, 1.1, 6),
+            new THREE.MeshStandardMaterial({ color: 0xfacc15, emissive: 0xd97706, emissiveIntensity: 0.45 })
+        );
+        arrowCone.rotation.x = Math.PI;
+        arrowGroup.add(arrowCone);
+        arrowGroup.position.set(-5.8, 3.3, -10.1);
+        arrowGroup.visible = false;
+        scene.add(arrowGroup);
+        STATE.guideArrow = arrowGroup;
+    }
+
+    function createItemMesh(itemId, includeRing = true) {
+        const g = new THREE.Group();
+
+        switch (itemId) {
+            case 'carrots': {
+                const body = new THREE.Mesh(
+                    new THREE.ConeGeometry(0.24, 0.85, 8),
+                    new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.4 })
+                );
+                body.rotation.x = Math.PI * 0.78;
+                const leaves = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.28, 0.32, 0.28),
+                    new THREE.MeshStandardMaterial({ color: 0x22c55e })
+                );
+                leaves.position.set(0, 0.25, -0.35);
+                g.add(body, leaves);
+                break;
+            }
+            case 'potatoes': {
+                const p1 = new THREE.Mesh(new THREE.DodecahedronGeometry(0.32, 0), new THREE.MeshStandardMaterial({ color: 0xd97706 }));
+                p1.scale.set(1.2, 0.85, 0.9);
+                const p2 = new THREE.Mesh(new THREE.DodecahedronGeometry(0.26, 0), new THREE.MeshStandardMaterial({ color: 0xb45309 }));
+                p2.position.set(0.28, -0.05, 0.18);
+                g.add(p1, p2);
+                break;
+            }
+            case 'onions': {
+                const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.32, 12, 12), new THREE.MeshStandardMaterial({ color: 0xe879f9 }));
+                bulb.scale.set(1, 1.15, 1);
+                const tip = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.3, 8), new THREE.MeshStandardMaterial({ color: 0xa21caf }));
+                tip.position.y = 0.38;
+                g.add(bulb, tip);
+                break;
+            }
+            case 'cheese': {
+                const wedge = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.45, 0.45, 0.34, 3),
+                    new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.35 })
+                );
+                wedge.scale.set(1.1, 1, 1.3);
+                g.add(wedge);
+                break;
+            }
+            case 'stone': {
+                const rock = new THREE.Mesh(
+                    new THREE.DodecahedronGeometry(0.38, 0),
+                    new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.8 })
+                );
+                rock.scale.set(1.25, 0.78, 1.05);
+                g.add(rock);
+                break;
+            }
+            case 'bread': {
+                const loaf = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.68, 0.38, 0.42),
+                    new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.6 })
+                );
+                const top = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.21, 0.21, 0.68, 12),
+                    new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.5 })
+                );
+                top.rotation.z = Math.PI / 2;
+                top.position.y = 0.16;
+                g.add(loaf, top);
+                break;
+            }
+            case 'tomatoes': {
+                const t = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 12), new THREE.MeshStandardMaterial({ color: 0xef4444 }));
+                const stem = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.1, 0.18), new THREE.MeshStandardMaterial({ color: 0x16a34a }));
+                stem.position.y = 0.3;
+                g.add(t, stem);
+                break;
+            }
+            case 'apples': {
+                const a = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 12), new THREE.MeshStandardMaterial({ color: 0xdc2626 }));
+                const s = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.2, 0.06), new THREE.MeshStandardMaterial({ color: 0x78350f }));
+                s.position.y = 0.32;
+                g.add(a, s);
+                break;
+            }
+            case 'bananas': {
+                const b = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.1, 8, 12, Math.PI * 0.85), new THREE.MeshStandardMaterial({ color: 0xfef08a }));
+                b.rotation.z = 0.4;
+                g.add(b);
+                break;
+            }
+            case 'cabbage': {
+                const c = new THREE.Mesh(new THREE.DodecahedronGeometry(0.36, 1), new THREE.MeshStandardMaterial({ color: 0x4ade80 }));
+                g.add(c);
+                break;
+            }
+            case 'mushrooms': {
+                const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 0.34, 10), new THREE.MeshStandardMaterial({ color: 0xfef3c7 }));
+                const cap = new THREE.Mesh(new THREE.SphereGeometry(0.32, 12, 10, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xef4444 }));
+                cap.position.y = 0.14;
+                g.add(stalk, cap);
+                break;
+            }
+            case 'corn': {
+                const cob = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.65, 10), new THREE.MeshStandardMaterial({ color: 0xfacc15 }));
+                cob.rotation.z = 0.5;
+                g.add(cob);
+                break;
+            }
+            case 'flowers': {
+                const center = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 10), new THREE.MeshStandardMaterial({ color: 0x78350f }));
+                const petals = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.08, 8), new THREE.MeshStandardMaterial({ color: 0xfacc15 }));
+                g.add(center, petals);
+                break;
+            }
+            case 'leaves': {
+                const lf = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.06, 0.28), new THREE.MeshStandardMaterial({ color: 0x16a34a }));
+                lf.rotation.y = 0.5;
+                g.add(lf);
+                break;
+            }
+            case 'eggs': {
+                const eg = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 12), new THREE.MeshStandardMaterial({ color: 0xffffff }));
+                eg.scale.set(0.85, 1.25, 0.85);
+                g.add(eg);
+                break;
+            }
+            case 'fish': {
+                const fb = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 10), new THREE.MeshStandardMaterial({ color: 0x38bdf8 }));
+                fb.scale.set(1.5, 0.75, 0.55);
+                const tail = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.3, 4), new THREE.MeshStandardMaterial({ color: 0x0284c7 }));
+                tail.position.x = -0.45;
+                tail.rotation.z = -Math.PI / 2;
+                g.add(fb, tail);
+                break;
+            }
+            case 'candy': {
+                const cd = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.42, 10), new THREE.MeshStandardMaterial({ color: 0xec4899 }));
+                cd.rotation.z = Math.PI / 2;
+                g.add(cd);
+                break;
+            }
+            case 'wood': {
+                const wd = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.72, 8), new THREE.MeshStandardMaterial({ color: 0x92400e }));
+                wd.rotation.z = Math.PI / 2;
+                g.add(wd);
+                break;
+            }
+            case 'bottles':
+            default: {
+                const bt = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.55, 10), new THREE.MeshStandardMaterial({ color: 0xbae6fd, transparent: true, opacity: 0.85 }));
+                const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.12, 8), new THREE.MeshStandardMaterial({ color: 0x2563eb }));
+                cap.position.y = 0.32;
+                g.add(bt, cap);
+                break;
+            }
+        }
+
+        if (includeRing) {
+            const ring = new THREE.Mesh(
+                new THREE.RingGeometry(0.38, 0.5, 20),
+                new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: 0.65 })
+            );
+            ring.rotation.x = -Math.PI / 2;
+            ring.position.y = -0.28;
+            g.add(ring);
+        }
+
+        g.traverse(obj => {
+            if (obj.isMesh) obj.castShadow = true;
+        });
+
+        return g;
+    }
+
+    function spawnWorldCollectibles() {
+        STATE.worldItems.forEach(item => scene.remove(item.mesh));
+        STATE.worldItems = [];
+
+        REQUIRED_INGREDIENTS.forEach((ing, i) => {
+            const mesh = createItemMesh(ing.id, true);
+            mesh.position.set(...ing.pos);
+            scene.add(mesh);
+            STATE.worldItems.push({
+                ...ing,
+                isCorrect: true,
+                collected: false,
+                baseY: ing.pos[1],
+                phaseOffset: i * 1.1,
+                wobbleTimer: 0,
+                mesh
+            });
+        });
+
+        DISTRACTOR_ITEMS.forEach((dist, i) => {
+            const mesh = createItemMesh(dist.id, true);
+            mesh.position.set(...dist.pos);
+            scene.add(mesh);
+            STATE.worldItems.push({
+                ...dist,
+                isCorrect: false,
+                collected: false,
+                baseY: dist.pos[1],
+                phaseOffset: i * 0.85,
+                wobbleTimer: 0,
+                mesh
+            });
+        });
+    }
+
+    // ============================================================================
+    // 6. CHARACTER SELECTION & 9-TEAM LOBBY UI + CLASSROOM SIMULATOR
+    // ============================================================================
+    function setupCharacterSelectionUI() {
+        const nameInput = document.getElementById('input-player-name');
+        if (!nameInput.value) {
+            nameInput.value = CLASSROOM_NAMES[Math.floor(Math.random() * CLASSROOM_NAMES.length)];
+        }
+
+        const grid = document.getElementById('char-cards-grid');
+        grid.innerHTML = '';
+
+        CHARACTERS.forEach((char, idx) => {
+            const card = document.createElement('button');
+            card.className = `btn-roblox rounded-2xl p-2 sm:p-2.5 border-4 flex flex-col items-center gap-1 cursor-pointer transition-all ${
+                idx === selectedCharIndex
+                    ? 'bg-amber-300 border-slate-900 scale-105'
+                    : 'bg-white/95 border-slate-700 hover:bg-sky-50'
+            }`;
+            card.innerHTML = `
+                <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-full border-3 border-slate-900 flex items-center justify-center text-white font-black text-base sm:text-lg shadow-inner"
+                     style="background:${char.shirtColor}">
+                    ${char.name[0]}
+                </div>
+                <div class="font-black text-slate-900 text-sm sm:text-base leading-tight">${char.name}</div>
+                <div class="text-[11px] font-extrabold px-2 py-0.5 rounded-full ${
+                    char.gender === 'Boy' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'
+                }">${char.gender}</div>
+            `;
+            card.addEventListener('click', () => {
+                sound.init();
+                sound.playTone(587.33, 'triangle', 0.14, 0.18);
+                selectedCharIndex = idx;
+                setupCharacterSelectionUI();
+                updatePreviewCharacter();
+            });
+            grid.appendChild(card);
+        });
+
+        const cur = CHARACTERS[selectedCharIndex];
+        const badge = document.getElementById('sel-char-badge');
+        badge.textContent = cur.gender;
+        badge.className = `font-extrabold px-3 py-0.5 rounded-xl text-xs sm:text-sm uppercase text-white ${
+            cur.gender === 'Boy' ? 'bg-blue-600' : 'bg-pink-500'
+        }`;
+        document.getElementById('sel-char-name').textContent = cur.name;
+        document.getElementById('sel-char-desc').textContent = cur.desc;
+    }
+
+    function updatePreviewCharacter() {
+        if (previewCharacterMesh) {
+            scene.remove(previewCharacterMesh);
+        }
+        const charData = CHARACTERS[selectedCharIndex];
+        previewCharacterMesh = createAnimeCharacter(charData);
+        previewCharacterMesh.position.set(1.0, 0.15, 5.5);
+        previewCharacterMesh.scale.set(1.25, 1.25, 1.25);
+        scene.add(previewCharacterMesh);
+    }
+
+    function enterTeamLobby() {
+        sound.init();
+        sound.playSuccess();
+
+        const rawName = document.getElementById('input-player-name').value.trim();
+        MP.playerName = rawName || CLASSROOM_NAMES[Math.floor(Math.random() * CLASSROOM_NAMES.length)];
+        document.getElementById('input-player-name').value = MP.playerName;
+
+        const roomVal = document.getElementById('input-room-code').value.trim().toUpperCase() || 'CLASS-1';
+        if (roomVal !== MP.roomCode) {
+            subscribeToRoom(roomVal);
+        }
+
+        STATE.phase = 'LOBBY';
+        document.getElementById('char-select-screen').classList.add('hidden');
+        document.getElementById('team-lobby-screen').classList.remove('hidden');
+
+        syncMyMemberRecord();
+        renderLobbyTeams();
+        sound.speak(`Welcome ${MP.playerName}! Please choose your assigned team from Team 1 to Team 9.`);
+    }
+
+    function getTeamMembersList(teamId) {
+        const now = Date.now();
+        return Object.values(MP.allMembers).filter(m =>
+            m && m.teamId === teamId && (m.uid === MP.userId || m.uid.startsWith('ai_') || (now - (m.lastSeen || 0) < 120000))
+        );
+    }
+
+    function renderLobbyTeams() {
+        const grid = document.getElementById('teams-grid');
+        if (!grid) return;
+        grid.innerHTML = '';
+
+        TEAMS_META.forEach(team => {
+            const members = getTeamMembersList(team.id);
+            const tState = MP.teamsData[team.id] || createEmptyTeamState(team.id);
+            const isMyTeam = MP.myTeamId === team.id;
+
+            const card = document.createElement('div');
+            card.className = `rounded-3xl border-4 p-3 shadow-xl flex flex-col justify-between transition-all ${
+                isMyTeam
+                    ? `${team.lightBg} ${team.borderClass} ring-4 ring-yellow-300`
+                    : 'bg-white/95 border-slate-900'
+            }`;
+
+            const avatarsHtml = members.length === 0
+                ? `<div class="text-slate-400 font-bold text-xs italic py-1.5">Waiting for students to join...</div>`
+                : `<div class="flex flex-wrap gap-1.5 my-1.5">${members.map(m => {
+                    const ch = CHARACTERS.find(c => c.id === m.charId) || CHARACTERS[0];
+                    return `
+                        <span class="inline-flex items-center gap-1 bg-white border-2 border-slate-800 rounded-full px-2 py-0.5 text-xs font-extrabold text-slate-900 shadow-sm">
+                            <span class="w-3.5 h-3.5 rounded-full inline-block" style="background:${ch.shirtColor}"></span>
+                            <span>${m.name}</span>
+                            <span>${m.ready ? '✅' : '⏳'}</span>
+                        </span>
+                    `;
+                }).join('')}</div>`;
+
+            let actionBtnHtml = '';
+            if (isMyTeam) {
+                actionBtnHtml = `
+                    <button data-leave-team="${team.id}" class="btn-roblox bg-slate-700 text-white font-black text-xs sm:text-sm px-3 py-1.5 rounded-xl cursor-pointer">
+                        Leave Team
+                    </button>
+                `;
+            } else if (MP.myTeamId !== null) {
+                actionBtnHtml = `
+                    <span class="text-xs font-extrabold text-slate-400 bg-slate-100 px-2.5 py-1.5 rounded-xl border border-slate-300">
+                        🔒 Assigned to Team ${MP.myTeamId}
+                    </span>
+                `;
+            } else {
+                actionBtnHtml = `
+                    <button data-join-team="${team.id}" class="btn-roblox ${team.bgClass} text-white border-2 border-slate-900 font-black text-xs sm:text-sm px-3.5 py-1.5 rounded-xl cursor-pointer">
+                        JOIN ${team.name.toUpperCase()}
+                    </button>
+                `;
+            }
+
+            const statusBadge = tState.status === 'FINISHED'
+                ? `<span class="bg-emerald-500 text-white font-black px-2 py-0.5 rounded-lg text-[11px]">🏆 FINISHED</span>`
+                : tState.status === 'PLAYING'
+                    ? `<span class="bg-amber-400 text-slate-900 font-black px-2 py-0.5 rounded-lg text-[11px]">🔥 IN GAME</span>`
+                    : `<span class="bg-slate-200 text-slate-700 font-black px-2 py-0.5 rounded-lg text-[11px]">👥 ${members.length} Players</span>`;
+
+            card.innerHTML = `
+                <div>
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="${team.bgClass} text-white font-black px-3 py-0.5 rounded-xl text-sm sm:text-base border-2 border-slate-900 shadow-sm">
+                                ${team.name}
+                            </span>
+                            <span class="font-extrabold text-slate-800 text-xs sm:text-sm">${team.label}</span>
+                        </div>
+                        ${statusBadge}
+                    </div>
+                    <div class="text-[11px] font-bold text-slate-500 mt-0.5">🏠 ${team.area}</div>
+                    ${avatarsHtml}
+                </div>
+                <div class="flex items-center justify-between pt-1.5 border-t border-slate-200 mt-1">
+                    <span class="text-xs font-extrabold text-slate-600">
+                        Ready: ${members.filter(m => m.ready).length}/${members.length}
+                    </span>
+                    ${actionBtnHtml}
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+
+        // Attach Join/Leave button listeners
+        grid.querySelectorAll('[data-join-team]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tid = Number(btn.getAttribute('data-join-team'));
+                joinTeam(tid);
+            });
+        });
+        grid.querySelectorAll('[data-leave-team]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                leaveTeam();
+            });
+        });
+
+        updateLobbyBottomControls();
+    }
+
+    function joinTeam(teamId) {
+        if (MP.myTeamId !== null) return;
+        sound.init();
+        sound.playSuccess();
+        MP.myTeamId = teamId;
+        MP.isReady = false;
+        syncMyMemberRecord();
+        renderLobbyTeams();
+
+        const teamMeta = TEAMS_META[teamId - 1];
+        sound.speak(`You joined ${teamMeta.name}! Tap Ready when your team is ready to start!`);
+    }
+
+    function leaveTeam() {
+        sound.playTone(300, 'triangle', 0.15, 0.15);
+        MP.myTeamId = null;
+        MP.isReady = false;
+        syncMyMemberRecord();
+        renderLobbyTeams();
+    }
+
+    function toggleReadyStatus() {
+        if (!MP.myTeamId) return;
+        sound.init();
+        MP.isReady = !MP.isReady;
+        if (MP.isReady) {
+            sound.playSuccess();
+            sound.speak("Ready! Tap Start Team Mission to enter your team's house and garden!");
+        } else {
+            sound.playTone(330, 'triangle', 0.15, 0.15);
+        }
+        syncMyMemberRecord();
+        renderLobbyTeams();
+    }
+
+    function updateLobbyBottomControls() {
+        const badge = document.getElementById('lobby-my-team-badge');
+        const hint = document.getElementById('lobby-ready-hint');
+        const btnReady = document.getElementById('btn-toggle-ready');
+        const btnStart = document.getElementById('btn-start-team-game');
+
+        if (!MP.myTeamId) {
+            badge.className = 'bg-slate-800 text-white font-black px-3.5 py-1.5 rounded-2xl text-sm sm:text-base';
+            badge.textContent = 'No Team Selected';
+            hint.textContent = 'Tap "JOIN TEAM" on your assigned team card above!';
+            btnReady.disabled = true;
+            btnReady.className = 'btn-roblox bg-slate-300 border-4 border-slate-900 text-slate-600 font-black text-base sm:text-xl px-5 py-2.5 rounded-2xl cursor-not-allowed';
+            btnReady.textContent = '⬜ READY';
+            btnStart.disabled = true;
+            btnStart.className = 'btn-roblox bg-slate-300 border-4 border-slate-900 text-slate-600 font-black text-base sm:text-xl px-6 py-2.5 rounded-2xl cursor-not-allowed';
+            return;
+        }
+
+        const teamMeta = TEAMS_META[MP.myTeamId - 1];
+        const members = getTeamMembersList(MP.myTeamId);
+        const readyCount = members.filter(m => m.ready).length;
+
+        badge.className = `${teamMeta.bgClass} text-white border-2 border-slate-900 font-black px-3.5 py-1.5 rounded-2xl text-sm sm:text-base`;
+        badge.textContent = `${teamMeta.name} (${members.length} ${members.length === 1 ? 'Player' : 'Players'})`;
+        hint.textContent = MP.isReady
+            ? `You are READY! (${readyCount}/${members.length} ready) — Start anytime!`
+            : `Tap READY ✅ so your teammates know you are ready!`;
+
+        btnReady.disabled = false;
+        btnReady.className = MP.isReady
+            ? 'btn-roblox bg-emerald-400 border-4 border-slate-900 text-slate-950 font-black text-base sm:text-xl px-5 py-2.5 rounded-2xl cursor-pointer'
+            : 'btn-roblox bg-amber-300 border-4 border-slate-900 text-slate-950 font-black text-base sm:text-xl px-5 py-2.5 rounded-2xl cursor-pointer';
+        btnReady.textContent = MP.isReady ? '✅ READY!' : '⬜ READY';
+
+        const canStart = MP.isReady || readyCount > 0;
+        btnStart.disabled = !canStart;
+        btnStart.className = canStart
+            ? 'btn-roblox bg-gradient-to-b from-emerald-400 to-green-600 border-4 border-slate-900 text-white font-black text-base sm:text-xl px-6 py-2.5 rounded-2xl cursor-pointer animate-bounce'
+            : 'btn-roblox bg-slate-300 border-4 border-slate-900 text-slate-600 font-black text-base sm:text-xl px-6 py-2.5 rounded-2xl cursor-not-allowed';
+    }
+
+    // Classroom Simulator for Single-Device Testing / Demo
+    function toggleClassroomSimulation() {
+        MP.simClassmates = !MP.simClassmates;
+        const btn = document.getElementById('btn-sim-class');
+        btn.textContent = MP.simClassmates ? '🤖 Simulate Classmates: ON' : '🤖 Simulate Classmates: OFF';
+        btn.className = MP.simClassmates
+            ? 'btn-roblox bg-emerald-400 border-3 border-slate-900 text-slate-950 font-black px-3.5 py-2 rounded-2xl text-xs sm:text-sm cursor-pointer'
+            : 'btn-roblox bg-amber-300 border-3 border-slate-900 text-slate-900 font-black px-3.5 py-2 rounded-2xl text-xs sm:text-sm cursor-pointer';
+
+        if (MP.simClassmates) {
+            // Populate AI students across Teams 1–9 so classroom demo looks lively!
+            const botSpecs = [
+                { uid: 'ai_1', name: 'Mina-AI', charId: 'mina', teamId: MP.myTeamId || 1, ready: true, x: -2.0, z: -3.0 },
+                { uid: 'ai_2', name: 'Ren-AI',  charId: 'ren',  teamId: MP.myTeamId || 1, ready: true, x: 3.5,  z: 2.5 },
+                { uid: 'ai_3', name: 'Yuki-AI', charId: 'yuki', teamId: 2, ready: true, x: 0, z: 0 },
+                { uid: 'ai_4', name: 'Kai-AI',  charId: 'kai',  teamId: 3, ready: true, x: 0, z: 0 },
+                { uid: 'ai_5', name: 'Hana-AI', charId: 'hana', teamId: 4, ready: true, x: 0, z: 0 },
+                { uid: 'ai_6', name: 'Leo-AI',  charId: 'sora', teamId: 5, ready: true, x: 0, z: 0 },
+                { uid: 'ai_7', name: 'Zoe-AI',  charId: 'mina', teamId: 6, ready: true, x: 0, z: 0 },
+                { uid: 'ai_8', name: 'Noah-AI', charId: 'ren',  teamId: 7, ready: true, x: 0, z: 0 },
+                { uid: 'ai_9', name: 'Aria-AI', charId: 'yuki', teamId: 8, ready: true, x: 0, z: 0 },
+                { uid: 'ai_10',name: 'Max-AI',  charId: 'kai',  teamId: 9, ready: true, x: 0, z: 0 }
+            ];
+            botSpecs.forEach(b => {
+                MP.allMembers[b.uid] = { ...b, rotY: 0, carryingId: null, lastSeen: Date.now() };
+            });
+
+            // Start active simulation loop for AI teammates & rival teams
+            if (!MP.simInterval) {
+                MP.simInterval = setInterval(runClassroomSimulationTick, 2200);
+            }
+        } else {
+            Object.keys(MP.allMembers).forEach(k => {
+                if (k.startsWith('ai_')) delete MP.allMembers[k];
+            });
+            if (MP.simInterval) {
+                clearInterval(MP.simInterval);
+                MP.simInterval = null;
+            }
+        }
+        onRoomStateUpdated();
+    }
+
+    function runClassroomSimulationTick() {
+        if (!MP.simClassmates) return;
+        const now = Date.now();
+
+        // Keep AI teammates in my team if joined
+        if (MP.myTeamId) {
+            if (MP.allMembers['ai_1']) MP.allMembers['ai_1'].teamId = MP.myTeamId;
+            if (MP.allMembers['ai_2']) MP.allMembers['ai_2'].teamId = MP.myTeamId;
+        }
+
+        // Move AI teammates smoothly around the garden & kitchen when playing
+        if (STATE.phase === 'PLAYING' && MP.myTeamId) {
+            ['ai_1', 'ai_2'].forEach((id, idx) => {
+                const bot = MP.allMembers[id];
+                if (!bot) return;
+                const targetX = idx === 0 ? (-12 + Math.sin(now * 0.001) * 4) : (12 + Math.cos(now * 0.001) * 4);
+                const targetZ = idx === 0 ? (7 + Math.cos(now * 0.0012) * 4) : (6 + Math.sin(now * 0.0012) * 4);
+                bot.rotY = Math.atan2(targetX - bot.x, targetZ - bot.z);
+                bot.x = targetX;
+                bot.z = targetZ;
+                bot.lastSeen = now;
+            });
+
+            // Occasionally have AI teammate help find an uncollected ingredient if player is slow
+            const myTeam = MP.teamsData[MP.myTeamId];
+            if (myTeam && myTeam.status === 'PLAYING' && Math.random() < 0.22) {
+                const uncollected = REQUIRED_INGREDIENTS.filter(ing => !myTeam.collected[ing.id]);
+                if (uncollected.length > 1) {
+                    const pick = uncollected[Math.floor(Math.random() * uncollected.length)];
+                    mutateTeamState(MP.myTeamId, (t) => {
+                        if (t.collected[pick.id]) return null;
+                        t.collected[pick.id] = {
+                            byName: 'Mina-AI',
+                            washed: pick.category === 'topping',
+                            inPot: false
+                        };
+                        t.score += 100;
+                        if (Object.keys(t.collected).length === 6 && !t.allSixBonusAwarded) {
+                            t.allSixBonusAwarded = true;
+                            t.score += 200;
+                        }
+                        t.lastEventId = Date.now();
+                        t.lastEvent = `Mina-AI found ${pick.name}! ${pick.icon}`;
+                        return t;
+                    });
+                }
+            }
+        }
+
+        // Simulate rival teams (Teams 1–9 excluding player's team) progressing in parallel
+        if (STATE.phase === 'PLAYING' || STATE.phase === 'WIN') {
+            for (let tid = 1; tid <= 9; tid++) {
+                if (tid === MP.myTeamId) continue;
+                const rt = MP.teamsData[tid];
+                if (!rt) continue;
+                if (rt.status === 'LOBBY') {
+                    rt.status = 'PLAYING';
+                    rt.startedAt = now;
+                } else if (rt.status === 'PLAYING' && Math.random() < 0.45) {
+                    const colCount = Object.keys(rt.collected).length;
+                    if (colCount < 6) {
+                        const nextIng = REQUIRED_INGREDIENTS[colCount];
+                        rt.collected[nextIng.id] = { byName: `Team${tid}`, washed: true, inPot: nextIng.category === 'base' };
+                        rt.score += 150;
+                        if (colCount + 1 === 6) rt.score += 200;
+                    } else if (!rt.soupCooked) {
+                        rt.soupCooked = true;
+                        rt.score += 250;
+                    } else {
+                        rt.appliedToppings = { cheese: true, bread: true };
+                        rt.status = 'FINISHED';
+                        rt.finishedAt = now;
+                        rt.elapsedSec = Math.max(25, Math.floor((now - rt.startedAt) / 1000));
+                        rt.score += 300;
+                    }
+                }
+            }
+            onRoomStateUpdated();
+        }
+    }
+
+    // ============================================================================
+    // 7. ENTER TEAM'S ISOLATED 3D WORLD & SYNCHRONIZE SHARED STATE
+    // ============================================================================
+    async function startTeamAdventure() {
+        if (!MP.myTeamId) return;
+        sound.init();
+        sound.playSuccess();
+        sound.startBGM();
+
+        const teamId = MP.myTeamId;
+        const teamMeta = TEAMS_META[teamId - 1];
+
+        // Ensure team state is initialized & marked PLAYING
+        await mutateTeamState(teamId, (t) => {
+            if (t.status === 'LOBBY' || t.status === 'FINISHED') {
+                const fresh = createEmptyTeamState(teamId);
+                fresh.status = 'PLAYING';
+                fresh.startedAt = Date.now();
+                return fresh;
+            }
+            return t;
+        });
+
+        if (previewCharacterMesh) {
+            scene.remove(previewCharacterMesh);
+            previewCharacterMesh = null;
+        }
+        if (playerGroup) {
+            scene.remove(playerGroup);
+        }
+
+        // Clear any leftover remote avatars, pot chunks, or stars
+        Object.values(MP.remoteAvatars).forEach(av => scene.remove(av.group));
+        MP.remoteAvatars = {};
+        STATE.potChunks.forEach(c => scene.remove(c));
+        STATE.potChunks = [];
+        STATE.victoryStars.forEach(s => scene.remove(s));
+        STATE.victoryStars = [];
+
+        const charData = CHARACTERS[selectedCharIndex];
+        playerGroup = createAnimeCharacter(charData, `${MP.playerName} (T${teamId})`, teamMeta.hex);
+        // Offset spawn slightly per team member so teammates don't stack on exact same spot
+        const spawnOffset = (Math.random() - 0.5) * 2.2;
+        playerGroup.position.set(2.5 + spawnOffset, 0.12, -1.5 + spawnOffset);
+        scene.add(playerGroup);
+        playerParts = playerGroup.userData.parts;
+
+        STATE.phase = 'PLAYING';
+        STATE.carriedItem = null;
+        STATE.mistakes = 0;
+        STATE.camYaw = 0;
+        STATE.camPitch = 0.36;
+        STATE.animatingAction = false;
+        STATE.lastProcessedEventId = 0;
+
+        spawnWorldCollectibles();
+
+        document.getElementById('char-select-screen').classList.add('hidden');
+        document.getElementById('team-lobby-screen').classList.add('hidden');
+        document.getElementById('win-screen').classList.add('hidden');
+        document.getElementById('confetti-canvas').classList.add('hidden');
+        document.getElementById('game-hud').classList.remove('hidden');
+
+        const teamPill = document.getElementById('hud-team-pill');
+        teamPill.className = `${teamMeta.bgClass} text-white px-2.5 py-0.5 rounded-xl text-xs sm:text-sm`;
+        teamPill.textContent = teamMeta.name.toUpperCase();
+        document.getElementById('bottom-team-area').textContent = `${teamMeta.name} (${teamMeta.area})`;
+
+        // Start periodic position heartbeat to teammates in same team
+        if (MP.posSyncInterval) clearInterval(MP.posSyncInterval);
+        MP.posSyncInterval = setInterval(() => {
+            if (STATE.phase === 'PLAYING' && MP.myTeamId) {
+                syncMyMemberRecord();
+            }
+        }, 280);
+
+        onRoomStateUpdated();
+
+        const welcomeSpeech = `Let's make a delicious soup! ${teamMeta.name}, work together to find the six ingredients: Carrot, Potatoes, Onions, Cheese, Stone, and Bread!`;
+        setMissionBanner("Let's Make a Delicious Soup!", `${teamMeta.name}: Work together to find all 6 ingredients!`);
+        sound.speak(welcomeSpeech);
+    }
+
+    function onRoomStateUpdated() {
+        if (STATE.phase === 'LOBBY') {
+            renderLobbyTeams();
+            // Auto-transport player if a teammate started the team's mission!
+            if (MP.myTeamId && MP.teamsData[MP.myTeamId]?.status === 'PLAYING') {
+                startTeamAdventure();
+            }
+            return;
+        }
+
+        if (STATE.phase === 'PLAYING' || STATE.phase === 'WIN') {
+            renderLive9TeamScoreboard();
+            if (MP.myTeamId) {
+                applySharedTeamStateTo3DWorld(MP.teamsData[MP.myTeamId]);
+                syncRemoteTeammateAvatars();
+            }
+        }
+    }
+
+    // Apply synchronized team inventory, sink, pot, stove, and toppings to the 3D scene & HUD
+    function applySharedTeamStateTo3DWorld(teamState) {
+        if (!teamState) return;
+
+        // 1. Update Score
+        STATE.score = teamState.score || 0;
+        document.getElementById('hud-score').textContent = STATE.score;
+
+        // 2. Announce teammate events via Spoken Voice + Toast!
+        if (teamState.lastEventId && teamState.lastEventId !== STATE.lastProcessedEventId) {
+            STATE.lastProcessedEventId = teamState.lastEventId;
+            if (teamState.lastEvent) {
+                showFeedbackToast(teamState.lastEvent, true);
+                sound.speak(teamState.lastEvent);
+            }
+        }
+
+        // 3. Hide world items that ANY teammate on this team has already collected
+        const collectedMap = teamState.collected || {};
+        STATE.worldItems.forEach(item => {
+            if (item.isCorrect && collectedMap[item.id] && !item.collected) {
+                item.collected = true;
+                scene.remove(item.mesh);
+            }
+        });
+
+        // 4. Update Shared Checklist UI
+        const grid = document.getElementById('checklist-grid');
+        grid.innerHTML = '';
+        let foundCount = 0;
+
+        REQUIRED_INGREDIENTS.forEach(ing => {
+            const info = collectedMap[ing.id];
+            const isFound = Boolean(info);
+            if (isFound) foundCount++;
+
+            const row = document.createElement('div');
+            row.className = `flex items-center justify-between gap-1 px-2 py-1 rounded-xl border-2 transition-all ${
+                isFound
+                    ? 'bg-emerald-100 border-emerald-500 text-emerald-950'
+                    : 'bg-slate-50 border-slate-300 text-slate-800'
+            }`;
+            row.innerHTML = `
+                <div class="flex items-center gap-1 ${isFound ? 'line-through opacity-85' : ''}">
+                    <span>${isFound ? '☑️' : '☐'}</span>
+                    <span>${ing.icon}</span>
+                    <span>${ing.name}</span>
+                </div>
+                ${isFound ? `<span class="text-[10px] font-black bg-emerald-200 px-1.5 rounded">${info.byName || '✓'}</span>` : ''}
+            `;
+            grid.appendChild(row);
+        });
+        document.getElementById('ingredient-counter').textContent = `${foundCount}/6`;
+
+        // 5. Synchronize Cooking Pot Chunks (for washed base ingredients placed in pot)
+        const baseIds = ['carrots', 'potatoes', 'onions', 'stone'];
+        const inPotList = baseIds.filter(id => collectedMap[id]?.inPot);
+        if (STATE.potChunks.length !== inPotList.length) {
+            STATE.potChunks.forEach(c => scene.remove(c));
+            STATE.potChunks = [];
+            inPotList.forEach((id, idx) => {
+                const ingObj = REQUIRED_INGREDIENTS.find(i => i.id === id);
+                const chunk = new THREE.Mesh(
+                    new THREE.DodecahedronGeometry(0.14, 0),
+                    new THREE.MeshStandardMaterial({ color: ingObj ? ingObj.chunkColor : 0xf97316 })
+                );
+                const angle = (idx / 4) * Math.PI * 2;
+                chunk.position.set(-3.0 + Math.cos(angle) * 0.24, 1.81, -10.1 + Math.sin(angle) * 0.24);
+                scene.add(chunk);
+                STATE.potChunks.push(chunk);
+            });
+        }
+
+        // 6. Synchronize Prep Counter Toppings (Cheese & Bread staged before soup is cooked)
+        const toppingsPlaced = teamState.toppingsPlaced || {};
+        if (STATE.prepMeshes.cheese) STATE.prepMeshes.cheese.visible = Boolean(toppingsPlaced.cheese && !teamState.appliedToppings?.cheese);
+        if (STATE.prepMeshes.bread)  STATE.prepMeshes.bread.visible  = Boolean(toppingsPlaced.bread  && !teamState.appliedToppings?.bread);
+
+        // 7. Synchronize Stove & Soup Cooked State
+        if (teamState.soupCooked) {
+            STATE.burnerMesh.material.emissive.setHex(0xff3300);
+            STATE.burnerMesh.material.emissiveIntensity = 1.45;
+            STATE.potSoupMesh.material.color.setHex(0xf59e0b);
+            STATE.potSoupMesh.material.emissive.setHex(0xd97706);
+            STATE.potSoupMesh.material.emissiveIntensity = 0.4;
+        } else {
+            STATE.burnerMesh.material.emissive.setHex(0x000000);
+            STATE.potSoupMesh.material.color.setHex(0x38bdf8);
+            STATE.potSoupMesh.material.emissive.setHex(0x000000);
+        }
+
+        // 8. Synchronize Applied Toppings on Soup
+        const applied = teamState.appliedToppings || {};
+        STATE.potCheeseMesh.visible = Boolean(applied.cheese);
+        STATE.potBreadMesh.visible  = Boolean(applied.bread);
+
+        updateCarryingUI();
+
+        // 9. Check if Team Completed the Mission!
+        if (teamState.status === 'FINISHED' && STATE.phase === 'PLAYING') {
+            triggerTeamWinCelebration(teamState);
+        } else if (STATE.phase === 'WIN') {
+            renderFinalLeaderboard();
+        }
+    }
+
+    // Render live 3D avatars for all teammates on the same team
+    function syncRemoteTeammateAvatars() {
+        if (!MP.myTeamId || !scene) return;
+        const teammates = getTeamMembersList(MP.myTeamId).filter(m => m.uid !== MP.userId);
+        const activeIds = new Set(teammates.map(m => m.uid));
+        const teamMeta = TEAMS_META[MP.myTeamId - 1];
+
+        // Remove disconnected teammates
+        Object.keys(MP.remoteAvatars).forEach(uid => {
+            if (!activeIds.has(uid)) {
+                scene.remove(MP.remoteAvatars[uid].group);
+                delete MP.remoteAvatars[uid];
+            }
+        });
+
+        // Create or update active teammates
+        teammates.forEach(tm => {
+            let av = MP.remoteAvatars[tm.uid];
+            if (!av) {
+                const ch = CHARACTERS.find(c => c.id === tm.charId) || CHARACTERS[0];
+                const grp = createAnimeCharacter(ch, tm.name, teamMeta.hex);
+                grp.position.set(tm.x || 0, 0.12, tm.z || 0);
+                scene.add(grp);
+                av = {
+                    group: grp,
+                    parts: grp.userData.parts,
+                    targetPos: new THREE.Vector3(tm.x || 0, 0.12, tm.z || 0),
+                    targetRot: tm.rotY || 0,
+                    carryingId: null,
+                    carriedMesh: null,
+                    walkPhase: Math.random() * 5
+                };
+                MP.remoteAvatars[tm.uid] = av;
+            }
+
+            av.targetPos.set(tm.x ?? av.targetPos.x, 0.12, tm.z ?? av.targetPos.z);
+            av.targetRot = tm.rotY ?? av.targetRot;
+
+            if (av.carryingId !== tm.carryingId) {
+                av.carryingId = tm.carryingId;
+                if (av.carriedMesh) {
+                    av.parts.carryAnchor.remove(av.carriedMesh);
+                    av.carriedMesh = null;
+                }
+                if (tm.carryingId) {
+                    const cm = createItemMesh(tm.carryingId, false);
+                    cm.scale.set(0.85, 0.85, 0.85);
+                    av.parts.carryAnchor.add(cm);
+                    av.carriedMesh = cm;
+                }
+            }
+        });
+    }
+
+    function setCarriedItemVisual(itemId) {
+        if (STATE.carriedMesh && playerParts.carryAnchor) {
+            playerParts.carryAnchor.remove(STATE.carriedMesh);
+            STATE.carriedMesh = null;
+        }
+        if (itemId && playerParts.carryAnchor) {
+            const mesh = createItemMesh(itemId, false);
+            mesh.scale.set(0.85, 0.85, 0.85);
+            playerParts.carryAnchor.add(mesh);
+            STATE.carriedMesh = mesh;
+        }
+        syncMyMemberRecord();
+    }
+
+    function updateCarryingUI() {
+        const badge = document.getElementById('carrying-badge');
+        const iconEl = document.getElementById('carrying-icon');
+        const textEl = document.getElementById('carrying-text');
+        const tState = MP.myTeamId ? MP.teamsData[MP.myTeamId] : null;
+        const collectedMap = tState?.collected || {};
+        const inPotCount = ['carrots', 'potatoes', 'onions', 'stone'].filter(id => collectedMap[id]?.inPot).length;
+
+        if (!STATE.carriedItem) {
+            badge.className = 'bg-slate-800/95 border-4 border-slate-900 text-white rounded-2xl px-3.5 py-1.5 shadow-xl flex items-center gap-2 font-extrabold text-xs sm:text-sm';
+            iconEl.textContent = '🎒';
+            if (tState?.soupCooked) {
+                textEl.textContent = 'Soup Cooked! Add Cheese & Bread toppings!';
+            } else if (inPotCount === 4) {
+                textEl.textContent = '4/4 in Pot! Turn on the Stove!';
+            } else {
+                textEl.textContent = `Hands Empty — Pot: ${inPotCount}/4 • Team Found: ${Object.keys(collectedMap).length}/6`;
+            }
+            return;
+        }
+
+        const c = STATE.carriedItem;
+        iconEl.textContent = c.icon;
+        if (c.category === 'base' && !c.washed) {
+            badge.className = 'bg-sky-600/95 border-4 border-slate-900 text-white rounded-2xl px-3.5 py-1.5 shadow-xl flex items-center gap-2 font-extrabold text-xs sm:text-sm';
+            textEl.textContent = `Carrying: ${c.name} → Go to Kitchen Sink!`;
+        } else if (c.category === 'base' && c.washed) {
+            badge.className = 'bg-emerald-600/95 border-4 border-slate-900 text-white rounded-2xl px-3.5 py-1.5 shadow-xl flex items-center gap-2 font-extrabold text-xs sm:text-sm';
+            textEl.textContent = `Washed ${c.name} ✓ → Put in Cooking Pot!`;
+        } else if (c.category === 'topping') {
+            badge.className = 'bg-amber-500/95 border-4 border-slate-900 text-slate-950 rounded-2xl px-3.5 py-1.5 shadow-xl flex items-center gap-2 font-extrabold text-xs sm:text-sm';
+            textEl.textContent = tState?.soupCooked
+                ? `Carrying: ${c.name} → Add to Soup Pot!`
+                : `Carrying: ${c.name} → Place on Kitchen Counter!`;
+        }
+    }
+
+    function setMissionBanner(title, sub, speakIt = false) {
+        document.getElementById('mission-title').textContent = title;
+        document.getElementById('mission-sub').textContent = sub;
+        if (speakIt) {
+            sound.speak(`${title} ${sub}`);
+        }
+    }
+
+    let feedbackTimeout = null;
+    function showFeedbackToast(message, isPositive = true) {
+        const banner = document.getElementById('feedback-banner');
+        const text = document.getElementById('feedback-text');
+        banner.className = `pop-in border-4 rounded-2xl px-4 py-2 shadow-2xl text-center max-w-lg ${
+            isPositive
+                ? 'bg-emerald-600/95 border-yellow-300 text-white'
+                : 'bg-rose-600/95 border-white text-white'
+        }`;
+        text.textContent = message;
+        banner.classList.remove('hidden');
+
+        if (feedbackTimeout) clearTimeout(feedbackTimeout);
+        feedbackTimeout = setTimeout(() => {
+            banner.classList.add('hidden');
+        }, 4800);
+    }
+
+    // ============================================================================
+    // 8. COOPERATIVE INTERACTION: FETCH -> WASH -> POT -> COOK -> TOPPINGS
+    // ============================================================================
+    async function handleInteract() {
+        if (!playerGroup || STATE.animatingAction || !MP.myTeamId) return;
+        const target = STATE.nearestInteractable;
+        if (!target) {
+            const msg = "Walk closer to an item or kitchen station!";
+            showFeedbackToast(msg, false);
+            sound.speak(msg);
+            return;
+        }
+
+        const teamId = MP.myTeamId;
+        const tState = MP.teamsData[teamId] || createEmptyTeamState(teamId);
+
+        // 1. PICKING UP AN ITEM IN THE WORLD
+        if (target.kind === 'item') {
+            const item = target.data;
+
+            if (!item.isCorrect) {
+                item.wobbleTimer = 0.6;
+                STATE.mistakes++;
+                sound.playWrong();
+                const msg = "Oops! We don't need this for our soup. Try again!";
+                showFeedbackToast(msg, false);
+                sound.speak(msg);
+                return;
+            }
+
+            if (STATE.carriedItem) {
+                sound.playWrong();
+                const msg = `You are carrying ${STATE.carriedItem.name}! Bring it to the kitchen first!`;
+                showFeedbackToast(msg, false);
+                sound.speak(msg);
+                return;
+            }
+
+            if (tState.collected && tState.collected[item.id]) {
+                showFeedbackToast(`Your teammate already found ${item.name}!`, true);
+                return;
+            }
+
+            // Collect this ingredient for the whole team!
+            item.collected = true;
+            scene.remove(item.mesh);
+            STATE.carriedItem = {
+                id: item.id,
+                name: item.name,
+                speechName: item.speechName,
+                icon: item.icon,
+                category: item.category,
+                chunkColor: item.chunkColor,
+                washed: false
+            };
+            sound.playSuccess();
+            setCarriedItemVisual(item.id);
+
+            await mutateTeamState(teamId, (t) => {
+                if (t.collected[item.id]) return null;
+                t.collected[item.id] = {
+                    byName: MP.playerName,
+                    washed: false,
+                    inPot: false
+                };
+                t.score += 100;
+                if (Object.keys(t.collected).length === 6 && !t.allSixBonusAwarded) {
+                    t.allSixBonusAwarded = true;
+                    t.score += 200;
+                }
+                t.lastEventId = Date.now();
+                t.lastEvent = `Great job! ${MP.playerName} found ${item.speechName}! Let's go back to the kitchen!`;
+                return t;
+            });
+
+            STATE.guideArrow.visible = true;
+            if (item.category === 'base') {
+                STATE.guideArrow.position.set(-5.8, 3.3, -10.1);
+                setMissionBanner(
+                    "Awesome! Let's go back to the kitchen!",
+                    `Bring ${item.name} to the Kitchen Sink to wash it!`
+                );
+            } else if (tState.soupCooked) {
+                STATE.guideArrow.position.set(-3.0, 3.3, -10.1);
+                setMissionBanner(
+                    "Awesome! Let's go back to the kitchen!",
+                    `Add ${item.name} on top of the cooked soup!`
+                );
+            } else {
+                STATE.guideArrow.position.set(-5.4, 3.0, -7.8);
+                setMissionBanner(
+                    "Awesome! Let's go back to the kitchen!",
+                    `Place ${item.name} on the Kitchen Prep Counter!`
+                );
+            }
+            return;
+        }
+
+        // 2. KITCHEN SINK (Wash base ingredients: Carrot, Potatoes, Onions, Stone)
+        if (target.kind === 'sink') {
+            if (!STATE.carriedItem) {
+                const msg = "Find an ingredient outside and bring it to the sink!";
+                showFeedbackToast(msg, false);
+                sound.speak(msg);
+                return;
+            }
+            if (STATE.carriedItem.category === 'topping') {
+                const msg = `We don't wash ${STATE.carriedItem.name}! Put it on the Kitchen Counter!`;
+                showFeedbackToast(msg, false);
+                sound.speak(msg);
+                return;
+            }
+            if (STATE.carriedItem.washed) {
+                const msg = `${STATE.carriedItem.name} is already washed! Put it in the Cooking Pot!`;
+                showFeedbackToast(msg, true);
+                sound.speak(msg);
+                return;
+            }
+
+            STATE.animatingAction = true;
+            sound.playSplash();
+            setMissionBanner("Wash the vegetables!", `Washing ${STATE.carriedItem.name} under clean water...`, true);
+            showFeedbackToast(`Wash the vegetables! Washing ${STATE.carriedItem.name}...`, true);
+
+            if (STATE.carriedMesh) {
+                STATE.carriedMesh.position.set(0, 0.05, 0.25);
+            }
+
+            for (let i = 0; i < 30; i++) {
+                const drop = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.07, 6, 6),
+                    new THREE.MeshBasicMaterial({ color: 0x38bdf8 })
+                );
+                drop.position.set(
+                    -5.8 + (Math.random() - 0.5) * 0.45,
+                    1.78,
+                    -10.15 + (Math.random() - 0.5) * 0.35
+                );
+                drop.userData.vy = -1.2 - Math.random() * 1.4;
+                scene.add(drop);
+                STATE.waterDrops.push(drop);
+            }
+
+            setTimeout(async () => {
+                STATE.animatingAction = false;
+                if (!STATE.carriedItem) return;
+                STATE.carriedItem.washed = true;
+                if (STATE.carriedMesh) {
+                    STATE.carriedMesh.position.set(0, 0, 0);
+                }
+                STATE.sinkCheckMesh.visible = true;
+                sound.playSuccess();
+
+                const washedId = STATE.carriedItem.id;
+                const washedName = STATE.carriedItem.name;
+
+                await mutateTeamState(teamId, (t) => {
+                    if (t.collected[washedId]) {
+                        t.collected[washedId].washed = true;
+                    }
+                    t.score += 50;
+                    t.lastEventId = Date.now();
+                    t.lastEvent = `${MP.playerName} washed the ${washedName}! Now put it in the pot!`;
+                    return t;
+                });
+
+                STATE.guideArrow.position.set(-3.0, 3.3, -10.1);
+                setMissionBanner(
+                    "Washed! ✓ Now put it in the pot!",
+                    `Walk to the Cooking Pot and drop in the ${washedName}!`
+                );
+            }, 1500);
+            return;
+        }
+
+        // 3. KITCHEN PREP COUNTER (Stage Cheese or Bread before soup is cooked)
+        if (target.kind === 'prep') {
+            const toppingsPlaced = tState.toppingsPlaced || {};
+            const applied = tState.appliedToppings || {};
+
+            if (!STATE.carriedItem) {
+                if (tState.soupCooked) {
+                    const stagedId = ['cheese', 'bread'].find(id => toppingsPlaced[id] && !applied[id]);
+                    if (stagedId) {
+                        const ingObj = REQUIRED_INGREDIENTS.find(i => i.id === stagedId);
+                        STATE.carriedItem = {
+                            id: ingObj.id,
+                            name: ingObj.name,
+                            speechName: ingObj.speechName,
+                            icon: ingObj.icon,
+                            category: 'topping',
+                            washed: true
+                        };
+                        setCarriedItemVisual(ingObj.id);
+                        await mutateTeamState(teamId, (t) => {
+                            t.toppingsPlaced[stagedId] = false;
+                            return t;
+                        });
+                        STATE.guideArrow.position.set(-3.0, 3.3, -10.1);
+                        const msg = `Picked up ${ingObj.name}! Put it on top of the cooked soup!`;
+                        showFeedbackToast(msg, true);
+                        sound.speak(msg);
+                        return;
+                    }
+                }
+                const msg = "Bring Cheese or Bread here for toppings!";
+                showFeedbackToast(msg, false);
+                sound.speak(msg);
+                return;
+            }
+
+            if (STATE.carriedItem.category === 'base') {
+                const msg = `Wash ${STATE.carriedItem.name} at the sink and put it in the pot!`;
+                showFeedbackToast(msg, false);
+                sound.speak(msg);
+                return;
+            }
+
+            const topId = STATE.carriedItem.id;
+            const topName = STATE.carriedItem.name;
+            STATE.carriedItem = null;
+            setCarriedItemVisual(null);
+            sound.playSuccess();
+
+            await mutateTeamState(teamId, (t) => {
+                t.toppingsPlaced[topId] = true;
+                t.lastEventId = Date.now();
+                t.lastEvent = `${MP.playerName} placed ${topName} on the kitchen counter!`;
+                return t;
+            });
+
+            if (tState.soupCooked) {
+                STATE.guideArrow.position.set(-5.4, 3.0, -7.8);
+                setMissionBanner("Soup is cooked!", "Pick up Cheese & Bread from the counter to top your soup!");
+            } else {
+                STATE.guideArrow.visible = false;
+                setMissionBanner(
+                    "Let's Make a Delicious Soup!",
+                    "Work with your team to find the remaining ingredients!"
+                );
+            }
+            return;
+        }
+
+        // 4. STOVE & COOKING POT
+        if (target.kind === 'pot') {
+            const collectedMap = tState.collected || {};
+            const baseIds = ['carrots', 'potatoes', 'onions', 'stone'];
+            const inPotCount = baseIds.filter(id => collectedMap[id]?.inPot).length;
+
+            // 4A: Player is carrying a base ingredient
+            if (STATE.carriedItem && STATE.carriedItem.category === 'base') {
+                if (!STATE.carriedItem.washed) {
+                    sound.playWrong();
+                    const msg = `Wash the ${STATE.carriedItem.name} at the Kitchen Sink first!`;
+                    showFeedbackToast(msg, false);
+                    sound.speak(msg);
+                    return;
+                }
+
+                const addedId = STATE.carriedItem.id;
+                const addedName = STATE.carriedItem.name;
+                STATE.carriedItem = null;
+                setCarriedItemVisual(null);
+                STATE.sinkCheckMesh.visible = false;
+                sound.playSplash();
+
+                const newCount = inPotCount + 1;
+                await mutateTeamState(teamId, (t) => {
+                    if (t.collected[addedId]) {
+                        t.collected[addedId].inPot = true;
+                    }
+                    t.lastEventId = Date.now();
+                    t.lastEvent = newCount < 4
+                        ? `${MP.playerName} put ${addedName} in the pot! (${newCount} of 4)`
+                        : `All 4 ingredients are in the pot! Let's cook the soup!`;
+                    return t;
+                });
+
+                if (newCount < 4) {
+                    STATE.guideArrow.visible = false;
+                    setMissionBanner(
+                        `Pot Ingredients: ${newCount}/4`,
+                        "Find the rest of the soup ingredients with your team!"
+                    );
+                } else {
+                    STATE.guideArrow.visible = true;
+                    STATE.guideArrow.position.set(-3.0, 3.3, -10.1);
+                    setMissionBanner(
+                        "Let's cook the soup!",
+                        "All 4 ingredients are in! Tap COOK SOUP to turn on the stove!"
+                    );
+                }
+                return;
+            }
+
+            // 4B: Player is carrying Cheese or Bread topping
+            if (STATE.carriedItem && STATE.carriedItem.category === 'topping') {
+                if (!tState.soupCooked) {
+                    sound.playWrong();
+                    const msg = `Cook the soup first! Place ${STATE.carriedItem.name} on the Kitchen Counter behind you!`;
+                    showFeedbackToast(msg, false);
+                    sound.speak(msg);
+                    return;
+                }
+
+                const topId = STATE.carriedItem.id;
+                const topName = STATE.carriedItem.name;
+                STATE.carriedItem = null;
+                setCarriedItemVisual(null);
+
+                const willComplete = (topId === 'cheese' && tState.appliedToppings?.bread) ||
+                                     (topId === 'bread'  && tState.appliedToppings?.cheese);
+
+                await mutateTeamState(teamId, (t) => {
+                    t.appliedToppings[topId] = true;
+                    if (willComplete && t.status !== 'FINISHED') {
+                        t.status = 'FINISHED';
+                        t.finishedAt = Date.now();
+                        t.elapsedSec = Math.max(10, Math.floor((t.finishedAt - (t.startedAt || t.finishedAt)) / 1000));
+                        t.score += 300;
+                        t.lastEventId = Date.now();
+                        t.lastEvent = `Congratulations Team ${teamId}! You worked together and made a delicious magical soup!`;
+                    } else {
+                        t.score += 100;
+                        t.lastEventId = Date.now();
+                        t.lastEvent = `${MP.playerName} added ${topName} on top of the soup!`;
+                    }
+                    return t;
+                });
+
+                if (!willComplete) {
+                    sound.playSuccess();
+                    const rem = topId === 'cheese' ? 'Bread 🍞' : 'Cheese 🧀';
+                    setMissionBanner(`Added ${topName}! Now add ${rem}!`, `Add ${rem} to complete your Magical Soup!`);
+                }
+                return;
+            }
+
+            // 4C: Hands are empty at the Cooking Pot -> Turn on stove if 4/4 in pot
+            if (inPotCount === 4 && !tState.soupCooked) {
+                STATE.animatingAction = true;
+                sound.playBubble();
+                showFeedbackToast("Let's cook the soup! Bubbling magic soup!", true);
+                sound.speak("Let's cook the soup!");
+
+                for (let i = 0; i < 28; i++) {
+                    const puff = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.14 + Math.random() * 0.12, 8, 8),
+                        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.78 })
+                    );
+                    puff.position.set(
+                        -3.0 + (Math.random() - 0.5) * 0.65,
+                        1.9 + Math.random() * 0.5,
+                        -10.1 + (Math.random() - 0.5) * 0.65
+                    );
+                    puff.userData.vy = 0.75 + Math.random() * 0.75;
+                    puff.userData.life = 1.9 + Math.random() * 0.8;
+                    scene.add(puff);
+                    STATE.steamPuffs.push(puff);
+                }
+
+                setTimeout(async () => {
+                    STATE.animatingAction = false;
+                    sound.playSuccess();
+
+                    await mutateTeamState(teamId, (t) => {
+                        if (!t.soupCooked) {
+                            t.soupCooked = true;
+                            t.score += 250;
+                            t.lastEventId = Date.now();
+                            t.lastEvent = "The soup is cooked! Now add the cheese and bread toppings!";
+                        }
+                        return t;
+                    });
+
+                    const hasStaged = tState.toppingsPlaced?.cheese || tState.toppingsPlaced?.bread;
+                    if (hasStaged) {
+                        STATE.guideArrow.position.set(-5.4, 3.0, -7.8);
+                        setMissionBanner("Soup is cooked! Add Cheese & Bread!", "Pick up Cheese & Bread from the Kitchen Counter!");
+                    } else {
+                        STATE.guideArrow.visible = false;
+                        setMissionBanner("Soup is cooked! Add Cheese & Bread!", "Find Cheese & Bread and put them on the soup!");
+                    }
+                }, 1800);
+                return;
+            }
+
+            if (tState.soupCooked && (tState.toppingsPlaced?.cheese || tState.toppingsPlaced?.bread)) {
+                const msg = "Pick up Cheese and Bread from the Kitchen Counter behind you!";
+                showFeedbackToast(msg, false);
+                sound.speak(msg);
+                return;
+            }
+
+            const msg = `Pot has ${inPotCount} of 4 ingredients. Work with your team to find the rest!`;
+            showFeedbackToast(msg, false);
+            sound.speak(msg);
+        }
+    }
+
+    // ============================================================================
+    // 9. LIVE 9-TEAM PROGRESS SCOREBOARD & FINAL LEADERBOARD
+    // ============================================================================
+    function formatSeconds(sec) {
+        const s = Math.max(0, Math.floor(sec || 0));
+        const m = Math.floor(s / 60);
+        const r = s % 60;
+        return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
+    }
+
+    function getTeamCookingStageLabel(tState) {
+        if (!tState || tState.status === 'LOBBY') return 'In Lobby';
+        if (tState.status === 'FINISHED') return 'DONE! 🍲✨';
+        const col = tState.collected || {};
+        const inPot = ['carrots', 'potatoes', 'onions', 'stone'].filter(id => col[id]?.inPot).length;
+        if (tState.soupCooked) {
+            const tops = (tState.appliedToppings?.cheese ? 1 : 0) + (tState.appliedToppings?.bread ? 1 : 0);
+            return `Toppings (${tops}/2)`;
+        }
+        if (inPot === 4) return 'Ready to Cook 🔥';
+        if (inPot > 0) return `In Pot (${inPot}/4)`;
+        return 'Searching 🔍';
+    }
+
+    function renderLive9TeamScoreboard() {
+        const container = document.getElementById('live-scoreboard-rows');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const now = Date.now();
+        TEAMS_META.forEach(team => {
+            const tState = MP.teamsData[team.id] || createEmptyTeamState(team.id);
+            const members = getTeamMembersList(team.id);
+            const foundCount = Object.keys(tState.collected || {}).length;
+            const stageLabel = getTeamCookingStageLabel(tState);
+            const isMine = MP.myTeamId === team.id;
+
+            let sec = 0;
+            if (tState.status === 'FINISHED') sec = tState.elapsedSec || 0;
+            else if (tState.status === 'PLAYING' && tState.startedAt) sec = Math.floor((now - tState.startedAt) / 1000);
+
+            const row = document.createElement('div');
+            row.className = `flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-2xl border-2 ${
+                isMine ? `${team.lightBg} ${team.borderClass} font-black` : 'bg-slate-50 border-slate-200 font-bold'
+            }`;
+            row.innerHTML = `
+                <div class="flex items-center gap-1.5 min-w-[105px]">
+                    <span class="${team.bgClass} text-white font-black px-2 py-0.5 rounded-lg text-[11px]">T${team.id}</span>
+                    <span class="text-slate-800 truncate">${members.length}👤</span>
+                    <span class="text-amber-700">${foundCount}/6</span>
+                </div>
+                <div class="text-center text-slate-700 truncate flex-1">${stageLabel}</div>
+                <div class="flex items-center gap-2 text-right">
+                    <span class="text-sky-700 font-extrabold">${formatSeconds(sec)}</span>
+                    <span class="bg-slate-900 text-yellow-300 px-2 py-0.5 rounded-lg font-black">${tState.score || 0}</span>
+                </div>
+            `;
+            container.appendChild(row);
+        });
+    }
+
+    function renderFinalLeaderboard() {
+        const container = document.getElementById('final-leaderboard-rows');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const now = Date.now();
+        // Sort all 9 teams by: 1) Completion Status (FINISHED first), 2) Fastest Time, 3) Highest Score
+        const ranked = TEAMS_META.map(team => {
+            const tState = MP.teamsData[team.id] || createEmptyTeamState(team.id);
+            const isFinished = tState.status === 'FINISHED';
+            const timeSec = isFinished
+                ? (tState.elapsedSec || 999)
+                : (tState.status === 'PLAYING' && tState.startedAt ? Math.floor((now - tState.startedAt) / 1000) : 9999);
+            return {
+                team,
+                tState,
+                isFinished,
+                timeSec,
+                score: tState.score || 0,
+                found: Object.keys(tState.collected || {}).length
+            };
+        }).sort((a, b) => {
+            if (a.isFinished !== b.isFinished) return a.isFinished ? -1 : 1;
+            if (a.isFinished && b.isFinished && a.timeSec !== b.timeSec) return a.timeSec - b.timeSec;
+            return b.score - a.score;
+        });
+
+        ranked.forEach((entry, idx) => {
+            const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`;
+            const isMine = entry.team.id === MP.myTeamId;
+            const row = document.createElement('div');
+            row.className = `flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl border-2 ${
+                isMine ? 'bg-amber-100 border-amber-500 font-black' : 'bg-white border-slate-200 font-bold'
+            }`;
+            row.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <span class="w-7 text-center font-black">${medal}</span>
+                    <span class="${entry.team.bgClass} text-white font-black px-2 py-0.5 rounded-lg text-xs">${entry.team.name}</span>
+                    <span class="text-slate-700 hidden sm:inline">${entry.team.label}</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="${entry.isFinished ? 'text-emerald-600 font-black' : 'text-amber-600'}">
+                        ${entry.isFinished ? '✅ Finished' : `⏳ ${entry.found}/6`}
+                    </span>
+                    <span class="text-sky-700 font-extrabold">⏱️ ${entry.timeSec < 9000 ? formatSeconds(entry.timeSec) : '--:--'}</span>
+                    <span class="bg-slate-900 text-yellow-300 px-2.5 py-0.5 rounded-lg font-black">⭐ ${entry.score}</span>
+                </div>
+            `;
+            container.appendChild(row);
+        });
+    }
+
+    function triggerTeamWinCelebration(teamState) {
+        STATE.phase = 'WIN';
+        STATE.animatingAction = false;
+        sound.playVictory();
+
+        const teamId = MP.myTeamId || 1;
+        const teamMeta = TEAMS_META[teamId - 1];
+        const sec = teamState.elapsedSec || 60;
+
+        // Position player & teammates proudly around the finished Magical Soup in the kitchen
+        playerGroup.position.set(-4.2, 0.12, -8.8);
+        playerGroup.rotation.y = 0;
+
+        const teammates = getTeamMembersList(teamId).filter(m => m.uid !== MP.userId);
+        teammates.forEach((tm, i) => {
+            const av = MP.remoteAvatars[tm.uid];
+            if (av) {
+                av.targetPos.set(-2.1 + i * 1.1, 0.12, -8.8);
+                av.targetRot = 0;
+            }
+        });
+
+        const starMat = new THREE.MeshStandardMaterial({
+            color: 0xfacc15,
+            emissive: 0xf59e0b,
+            emissiveIntensity: 0.6
+        });
+        for (let i = 0; i < 12; i++) {
+            const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.22, 0), starMat);
+            star.userData.angle = (i / 12) * Math.PI * 2;
+            star.userData.height = 1.2 + (i % 3) * 0.75;
+            scene.add(star);
+            STATE.victoryStars.push(star);
+        }
+
+        document.getElementById('game-hud').classList.add('hidden');
+        document.getElementById('world-label').classList.add('hidden');
+        document.getElementById('win-team-title').textContent = `CONGRATULATIONS, ${teamMeta.name.toUpperCase()}!`;
+        document.getElementById('final-score-display').textContent = `${teamState.score} PTS`;
+        document.getElementById('final-time-display').textContent = formatSeconds(sec);
+
+        const membersContainer = document.getElementById('win-teammates-badges');
+        const allTeamMembers = getTeamMembersList(teamId);
+        membersContainer.innerHTML = allTeamMembers.map(m => `
+            <span class="bg-amber-100 border-2 border-amber-500 px-3 py-1 rounded-xl font-black text-slate-900 text-xs sm:text-sm">
+                👨‍🍳 ${m.name}
+            </span>
+        `).join('');
+
+        renderFinalLeaderboard();
+        document.getElementById('win-screen').classList.remove('hidden');
+        startConfetti();
+
+        sound.speak(`Congratulations ${teamMeta.name}! You worked together and made a delicious magical soup!`);
+    }
+
+    function returnToLobbyFromWin() {
+        STATE.phase = 'LOBBY';
+        MP.isReady = false;
+        if (MP.posSyncInterval) {
+            clearInterval(MP.posSyncInterval);
+            MP.posSyncInterval = null;
+        }
+        Object.values(MP.remoteAvatars).forEach(av => scene.remove(av.group));
+        MP.remoteAvatars = {};
+
+        document.getElementById('win-screen').classList.add('hidden');
+        document.getElementById('confetti-canvas').classList.add('hidden');
+        document.getElementById('team-lobby-screen').classList.remove('hidden');
+
+        syncMyMemberRecord();
+        renderLobbyTeams();
+    }
+
+    function startConfetti() {
+        const canvas = document.getElementById('confetti-canvas');
+        canvas.classList.remove('hidden');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const colors = ['#facc15', '#f43f5e', '#38bdf8', '#4ade80', '#a855f7', '#fb923c'];
+        const pieces = Array.from({ length: 140 }, () => ({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height - canvas.height,
+            w: 10 + Math.random() * 10,
+            h: 6 + Math.random() * 8,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            vy: 2.5 + Math.random() * 4,
+            vx: (Math.random() - 0.5) * 2.5,
+            rot: Math.random() * Math.PI * 2,
+            vrot: (Math.random() - 0.5) * 0.15
+        }));
+
+        function renderConfetti() {
+            if (STATE.phase !== 'WIN') return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            pieces.forEach(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.rot += p.vrot;
+                if (p.y > canvas.height) {
+                    p.y = -20;
+                    p.x = Math.random() * canvas.width;
+                }
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rot);
+                ctx.fillStyle = p.color;
+                ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+                ctx.restore();
+            });
+            requestAnimationFrame(renderConfetti);
+        }
+        renderConfetti();
+    }
+
+    // ============================================================================
+    // 10. PLAYER MOVEMENT, COLLISION DETECTION & PROXIMITY DETECTION
+    // ============================================================================
+    function checkCollision(nx, nz) {
+        const r = 0.45;
+        for (const box of STATE.colliders) {
+            if (nx + r > box.minX && nx - r < box.maxX && nz + r > box.minZ && nz - r < box.maxZ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function updateAreaIndicator(x, z) {
+        let area = 'Front Garden';
+        if (x >= -9 && x <= 0 && z >= -11 && z <= 1) area = 'Modern Kitchen';
+        else if (x > 0 && x <= 9 && z >= -11 && z <= 1) area = 'Living & Dining Room';
+        else if (x > 9) area = 'Backyard';
+        else if (x < -9) area = 'Vegetable Garden';
+        document.getElementById('area-indicator').textContent = area;
+    }
+
+    function updateRemoteAvatarsAnimation(dt, isWin = false) {
+        Object.values(MP.remoteAvatars).forEach(av => {
+            const dist = av.group.position.distanceTo(av.targetPos);
+            av.group.position.lerp(av.targetPos, Math.min(1, dt * 8));
+
+            let diff = av.targetRot - av.group.rotation.y;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            av.group.rotation.y += diff * Math.min(1, dt * 10);
+
+            if (isWin) {
+                av.walkPhase += dt * 7;
+                av.group.position.y = 0.12 + Math.abs(Math.sin(av.walkPhase)) * 0.6;
+                av.parts.leftArmPivot.rotation.z = 2.5;
+                av.parts.rightArmPivot.rotation.z = -2.5;
+            } else if (dist > 0.08) {
+                av.walkPhase += dt * 11;
+                const swing = Math.sin(av.walkPhase) * 0.7;
+                av.parts.leftLegPivot.rotation.x = swing;
+                av.parts.rightLegPivot.rotation.x = -swing;
+                av.parts.leftArmPivot.rotation.x = av.carryingId ? -1.1 : -swing * 0.8;
+                av.parts.rightArmPivot.rotation.x = av.carryingId ? -1.1 : swing * 0.8;
+            } else {
+                av.parts.leftLegPivot.rotation.x *= 0.8;
+                av.parts.rightLegPivot.rotation.x *= 0.8;
+                av.parts.leftArmPivot.rotation.x = av.carryingId ? -1.1 : 0;
+                av.parts.rightArmPivot.rotation.x = av.carryingId ? -1.1 : 0;
+            }
+        });
+    }
+
+    function updatePlayerAndProximity(dt) {
+        if (!playerGroup || STATE.phase === 'SELECT' || STATE.phase === 'LOBBY') return;
+
+        // Live Timer HUD Update
+        if (STATE.phase === 'PLAYING' && MP.myTeamId) {
+            const tState = MP.teamsData[MP.myTeamId];
+            if (tState && tState.startedAt) {
+                const sec = Math.floor((Date.now() - tState.startedAt) / 1000);
+                document.getElementById('hud-timer').textContent = formatSeconds(sec);
+            }
+        }
+
+        if (STATE.phase === 'WIN') {
+            STATE.walkTime += dt * 7;
+            playerGroup.position.y = 0.12 + Math.abs(Math.sin(STATE.walkTime)) * 0.65;
+            playerGroup.rotation.y += dt * 1.4;
+            playerParts.leftArmPivot.rotation.z = 2.6 + Math.sin(STATE.walkTime * 2) * 0.25;
+            playerParts.rightArmPivot.rotation.z = -2.6 - Math.sin(STATE.walkTime * 2) * 0.25;
+            updateRemoteAvatarsAnimation(dt, true);
+
+            STATE.victoryStars.forEach(star => {
+                star.userData.angle += dt * 2.2;
+                star.position.set(
+                    -3.5 + Math.cos(star.userData.angle) * 1.8,
+                    star.userData.height + Math.sin(STATE.walkTime + star.userData.angle) * 0.25,
+                    -9.4 + Math.sin(star.userData.angle) * 1.8
+                );
+                star.rotation.y += dt * 3;
+            });
+            return;
+        }
+
+        updateRemoteAvatarsAnimation(dt, false);
+
+        let moveX = INPUT.joyX;
+        let moveZ = INPUT.joyY;
+
+        if (INPUT.keys['KeyW'] || INPUT.keys['ArrowUp']) moveZ -= 1;
+        if (INPUT.keys['KeyS'] || INPUT.keys['ArrowDown']) moveZ += 1;
+        if (INPUT.keys['KeyA'] || INPUT.keys['ArrowLeft']) moveX -= 1;
+        if (INPUT.keys['KeyD'] || INPUT.keys['ArrowRight']) moveX += 1;
+        if (INPUT.keys['KeyQ']) STATE.camYaw += dt * 1.8;
+
+        const mag = Math.hypot(moveX, moveZ);
+        if (mag > 0.08 && !STATE.animatingAction) {
+            const normX = moveX / Math.max(1, mag);
+            const normZ = moveZ / Math.max(1, mag);
+
+            const sinY = Math.sin(STATE.camYaw);
+            const cosY = Math.cos(STATE.camYaw);
+            const worldVX = normX * cosY + normZ * sinY;
+            const worldVZ = -normX * sinY + normZ * cosY;
+
+            const speed = 7.4 * Math.min(1, mag);
+            const nextX = playerGroup.position.x + worldVX * speed * dt;
+            const nextZ = playerGroup.position.z + worldVZ * speed * dt;
+
+            if (!checkCollision(nextX, playerGroup.position.z)) {
+                playerGroup.position.x = nextX;
+            }
+            if (!checkCollision(playerGroup.position.x, nextZ)) {
+                playerGroup.position.z = nextZ;
+            }
+
+            const targetAngle = Math.atan2(worldVX, worldVZ);
+            let diff = targetAngle - playerGroup.rotation.y;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            playerGroup.rotation.y += diff * Math.min(1, dt * 14);
+
+            STATE.walkTime += dt * 11;
+            const swing = Math.sin(STATE.walkTime) * 0.75;
+            playerParts.leftLegPivot.rotation.x = swing;
+            playerParts.rightLegPivot.rotation.x = -swing;
+
+            if (STATE.carriedItem) {
+                playerParts.leftArmPivot.rotation.x = -1.1;
+                playerParts.rightArmPivot.rotation.x = -1.1;
+            } else {
+                playerParts.leftArmPivot.rotation.x = -swing * 0.85;
+                playerParts.rightArmPivot.rotation.x = swing * 0.85;
+            }
+            playerGroup.position.y = 0.12 + Math.abs(Math.cos(STATE.walkTime)) * 0.1;
+
+            sound.stepTimer += dt;
+            if (sound.stepTimer > 0.32) {
+                sound.stepTimer = 0;
+                sound.playStep();
+            }
+
+            updateAreaIndicator(playerGroup.position.x, playerGroup.position.z);
+        } else {
+            playerParts.leftLegPivot.rotation.x *= 0.8;
+            playerParts.rightLegPivot.rotation.x *= 0.8;
+            if (STATE.carriedItem) {
+                playerParts.leftArmPivot.rotation.x = -1.1;
+                playerParts.rightArmPivot.rotation.x = -1.1;
+            } else {
+                playerParts.leftArmPivot.rotation.x *= 0.8;
+                playerParts.rightArmPivot.rotation.x *= 0.8;
+            }
+            playerParts.leftArmPivot.rotation.z = 0;
+            playerParts.rightArmPivot.rotation.z = 0;
+            playerGroup.position.y = 0.12;
+        }
+
+        // Check nearest interactive object within reach
+        const px = playerGroup.position.x;
+        const pz = playerGroup.position.z;
+        let bestTarget = null;
+        let bestDist = 2.75;
+
+        const tState = MP.myTeamId ? MP.teamsData[MP.myTeamId] : null;
+        const collectedMap = tState?.collected || {};
+        const inPotCount = ['carrots', 'potatoes', 'onions', 'stone'].filter(id => collectedMap[id]?.inPot).length;
+
+        for (const item of STATE.worldItems) {
+            if (item.collected) continue;
+            const d = Math.hypot(px - item.mesh.position.x, pz - item.mesh.position.z);
+            if (d < bestDist) {
+                bestDist = d;
+                bestTarget = {
+                    kind: 'item',
+                    data: item,
+                    worldPos: item.mesh.position.clone().add(new THREE.Vector3(0, 0.75, 0)),
+                    icon: item.icon,
+                    label: item.name,
+                    btnText: `Pick Up ${item.name} ${item.icon}`
+                };
+            }
+        }
+
+        const sinkDist = Math.hypot(px - (-5.8), pz - (-9.1));
+        if (sinkDist < 2.25 && sinkDist < bestDist) {
+            bestDist = sinkDist;
+            bestTarget = {
+                kind: 'sink',
+                worldPos: new THREE.Vector3(-5.8, 2.2, -10.1),
+                icon: '🚰',
+                label: 'Kitchen Sink',
+                btnText: 'Wash at Sink 🚰'
+            };
+        }
+
+        const potDist = Math.hypot(px - (-3.0), pz - (-9.1));
+        if (potDist < 2.25 && potDist < bestDist) {
+            bestDist = potDist;
+            let btnText = 'Cooking Pot 🍲';
+            if (STATE.carriedItem && STATE.carriedItem.category === 'base') {
+                btnText = `Put ${STATE.carriedItem.name} in Pot 🍲`;
+            } else if (STATE.carriedItem && STATE.carriedItem.category === 'topping') {
+                btnText = `Add ${STATE.carriedItem.name} ${STATE.carriedItem.icon}`;
+            } else if (inPotCount === 4 && !tState?.soupCooked) {
+                btnText = 'Cook Soup 🔥';
+            }
+
+            bestTarget = {
+                kind: 'pot',
+                worldPos: new THREE.Vector3(-3.0, 2.3, -10.1),
+                icon: '🍲',
+                label: 'Cooking Pot',
+                btnText
+            };
+        }
+
+        const prepDist = Math.hypot(px - (-5.4), pz - (-7.8));
+        if (prepDist < 2.15 && prepDist < bestDist) {
+            bestDist = prepDist;
+            let btnText = 'Prep Counter';
+            if (STATE.carriedItem && STATE.carriedItem.category === 'topping') {
+                btnText = `Place ${STATE.carriedItem.name} ${STATE.carriedItem.icon}`;
+            } else if (tState?.soupCooked) {
+                const stagedId = ['cheese', 'bread'].find(id => tState.toppingsPlaced?.[id] && !tState.appliedToppings?.[id]);
+                if (stagedId) {
+                    const obj = REQUIRED_INGREDIENTS.find(i => i.id === stagedId);
+                    btnText = `Take ${obj.name} ${obj.icon}`;
+                }
+            }
+
+            bestTarget = {
+                kind: 'prep',
+                worldPos: new THREE.Vector3(-5.4, 2.0, -7.8),
+                icon: '🍽️',
+                label: 'Kitchen Prep Counter',
+                btnText
+            };
+        }
+
+        STATE.nearestInteractable = bestTarget;
+        const btnInteract = document.getElementById('btn-interact');
+        const worldLabel = document.getElementById('world-label');
+
+        if (bestTarget) {
+            btnInteract.classList.add('interact-ready');
+            btnInteract.classList.remove('opacity-75');
+            document.getElementById('btn-interact-icon').textContent = bestTarget.icon;
+            document.getElementById('btn-interact-label').textContent = bestTarget.btnText;
+
+            const projected = bestTarget.worldPos.clone().project(camera);
+            if (projected.z < 1) {
+                const sx = (projected.x * 0.5 + 0.5) * window.innerWidth;
+                const sy = (-projected.y * 0.5 + 0.5) * window.innerHeight;
+                worldLabel.style.left = `${sx}px`;
+                worldLabel.style.top = `${sy}px`;
+                document.getElementById('world-label-icon').textContent = bestTarget.icon;
+                document.getElementById('world-label-text').textContent = bestTarget.label;
+                worldLabel.classList.remove('hidden');
+            } else {
+                worldLabel.classList.add('hidden');
+            }
+        } else {
+            btnInteract.classList.remove('interact-ready');
+            btnInteract.classList.add('opacity-75');
+            document.getElementById('btn-interact-icon').textContent = '✋';
+            document.getElementById('btn-interact-label').textContent = 'INTERACT';
+            worldLabel.classList.add('hidden');
+        }
+    }
+
+    // ============================================================================
+    // 11. SMART TV TOUCH JOYSTICK, CAMERA DRAG & TAP-ON-3D-OBJECT CONTROLS
+    // ============================================================================
+    function setupControls() {
+        const joyZone = document.getElementById('joystick-zone');
+        const joyKnob = document.getElementById('joystick-knob');
+        let joyTouchId = null;
+        const maxRadius = 48;
+
+        function updateJoystickFromClient(clientX, clientY) {
+            const rect = joyZone.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+            let dx = clientX - cx;
+            let dy = clientY - cy;
+            const dist = Math.hypot(dx, dy);
+            if (dist > maxRadius) {
+                dx = (dx / dist) * maxRadius;
+                dy = (dy / dist) * maxRadius;
+            }
+            joyKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+            INPUT.joyX = dx / maxRadius;
+            INPUT.joyY = dy / maxRadius;
+        }
+
+        function resetJoystick() {
+            joyTouchId = null;
+            INPUT.joyX = 0;
+            INPUT.joyY = 0;
+            joyKnob.style.transform = 'translate(0px, 0px)';
+        }
+
+        joyZone.addEventListener('touchstart', e => {
+            e.preventDefault();
+            const t = e.changedTouches[0];
+            joyTouchId = t.identifier;
+            updateJoystickFromClient(t.clientX, t.clientY);
+        }, { passive: false });
+
+        joyZone.addEventListener('touchmove', e => {
+            e.preventDefault();
+            for (const t of e.changedTouches) {
+                if (t.identifier === joyTouchId) {
+                    updateJoystickFromClient(t.clientX, t.clientY);
+                }
+            }
+        }, { passive: false });
+
+        joyZone.addEventListener('touchend', e => {
+            for (const t of e.changedTouches) {
+                if (t.identifier === joyTouchId) resetJoystick();
+            }
+        });
+        joyZone.addEventListener('touchcancel', resetJoystick);
+
+        let mouseJoy = false;
+        joyZone.addEventListener('mousedown', e => {
+            mouseJoy = true;
+            updateJoystickFromClient(e.clientX, e.clientY);
+        });
+        window.addEventListener('mousemove', e => {
+            if (mouseJoy) updateJoystickFromClient(e.clientX, e.clientY);
+        });
+        window.addEventListener('mouseup', () => {
+            if (mouseJoy) {
+                mouseJoy = false;
+                resetJoystick();
+            }
+        });
+
+        const canvasEl = renderer.domElement;
+        let camTouchId = null;
+        let tapStartX = 0;
+        let tapStartY = 0;
+        let tapStartTime = 0;
+
+        function tryTap3DInteract(clientX, clientY) {
+            if (STATE.phase !== 'PLAYING' || !STATE.nearestInteractable) return;
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2(
+                (clientX / window.innerWidth) * 2 - 1,
+                -(clientY / window.innerHeight) * 2 + 1
+            );
+            raycaster.setFromCamera(mouse, camera);
+
+            const targets = [];
+            STATE.worldItems.forEach(it => {
+                if (!it.collected) targets.push(...it.mesh.children);
+            });
+            const hits = raycaster.intersectObjects(targets, true);
+            if (hits.length > 0) {
+                handleInteract();
+            }
+        }
+
+        canvasEl.addEventListener('touchstart', e => {
+            if (camTouchId !== null) return;
+            const t = e.changedTouches[0];
+            camTouchId = t.identifier;
+            INPUT.lastTouchX = t.clientX;
+            INPUT.lastTouchY = t.clientY;
+            tapStartX = t.clientX;
+            tapStartY = t.clientY;
+            tapStartTime = performance.now();
+        }, { passive: true });
+
+        canvasEl.addEventListener('touchmove', e => {
+            for (const t of e.changedTouches) {
+                if (t.identifier === camTouchId) {
+                    const dx = t.clientX - INPUT.lastTouchX;
+                    const dy = t.clientY - INPUT.lastTouchY;
+                    INPUT.lastTouchX = t.clientX;
+                    INPUT.lastTouchY = t.clientY;
+                    STATE.camYaw -= dx * 0.0065;
+                    STATE.camPitch = Math.max(0.15, Math.min(0.85, STATE.camPitch + dy * 0.005));
+                }
+            }
+        }, { passive: true });
+
+        canvasEl.addEventListener('touchend', e => {
+            for (const t of e.changedTouches) {
+                if (t.identifier === camTouchId) {
+                    camTouchId = null;
+                    const moved = Math.hypot(t.clientX - tapStartX, t.clientY - tapStartY);
+                    if (moved < 18 && performance.now() - tapStartTime < 350) {
+                        tryTap3DInteract(t.clientX, t.clientY);
+                    }
+                }
+            }
+        });
+
+        canvasEl.addEventListener('mousedown', e => {
+            INPUT.isDraggingCam = true;
+            INPUT.lastTouchX = e.clientX;
+            INPUT.lastTouchY = e.clientY;
+            tapStartX = e.clientX;
+            tapStartY = e.clientY;
+        });
+        window.addEventListener('mousemove', e => {
+            if (!INPUT.isDraggingCam) return;
+            const dx = e.clientX - INPUT.lastTouchX;
+            const dy = e.clientY - INPUT.lastTouchY;
+            INPUT.lastTouchX = e.clientX;
+            INPUT.lastTouchY = e.clientY;
+            STATE.camYaw -= dx * 0.006;
+            STATE.camPitch = Math.max(0.15, Math.min(0.85, STATE.camPitch + dy * 0.005));
+        });
+        window.addEventListener('mouseup', e => {
+            if (INPUT.isDraggingCam) {
+                INPUT.isDraggingCam = false;
+                if (Math.hypot(e.clientX - tapStartX, e.clientY - tapStartY) < 8) {
+                    tryTap3DInteract(e.clientX, e.clientY);
+                }
+            }
+        });
+
+        window.addEventListener('keydown', e => {
+            if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+            INPUT.keys[e.code] = true;
+            if ((e.code === 'Space' || e.code === 'KeyE') && STATE.phase === 'PLAYING') {
+                handleInteract();
+            }
+        });
+        window.addEventListener('keyup', e => {
+            INPUT.keys[e.code] = false;
+        });
+
+        // Character Selection & Lobby Listeners
+        document.getElementById('btn-random-name').addEventListener('click', () => {
+            sound.init();
+            sound.playTone(659.25, 'triangle', 0.12, 0.15);
+            const randomName = CLASSROOM_NAMES[Math.floor(Math.random() * CLASSROOM_NAMES.length)];
+            document.getElementById('input-player-name').value = randomName;
+        });
+
+        document.getElementById('btn-to-lobby').addEventListener('click', enterTeamLobby);
+        document.getElementById('btn-back-char').addEventListener('click', () => {
+            STATE.phase = 'SELECT';
+            document.getElementById('team-lobby-screen').classList.add('hidden');
+            document.getElementById('char-select-screen').classList.remove('hidden');
+        });
+
+        document.getElementById('btn-sim-class').addEventListener('click', toggleClassroomSimulation);
+        document.getElementById('btn-toggle-ready').addEventListener('click', toggleReadyStatus);
+        document.getElementById('btn-start-team-game').addEventListener('click', startTeamAdventure);
+
+        // In-Game HUD Listeners
+        document.getElementById('btn-interact').addEventListener('click', handleInteract);
+        document.getElementById('btn-play-again').addEventListener('click', returnToLobbyFromWin);
+
+        document.getElementById('btn-replay-voice').addEventListener('click', () => {
+            sound.init();
+            sound.replayLast();
+        });
+
+        document.getElementById('btn-toggle-scoreboard').addEventListener('click', () => {
+            const panel = document.getElementById('live-scoreboard-panel');
+            panel.classList.toggle('hidden');
+            renderLive9TeamScoreboard();
+        });
+        document.getElementById('btn-close-scoreboard').addEventListener('click', () => {
+            document.getElementById('live-scoreboard-panel').classList.add('hidden');
+        });
+
+        document.getElementById('btn-cam-left').addEventListener('click', () => {
+            STATE.camYaw += 0.55;
+        });
+        document.getElementById('btn-cam-right').addEventListener('click', () => {
+            STATE.camYaw -= 0.55;
+        });
+
+        document.getElementById('btn-mute').addEventListener('click', () => {
+            const isMuted = sound.toggleMute();
+            document.getElementById('btn-mute').textContent = isMuted ? '🔇 Muted' : '🔊 Audio ON';
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    }
+
+    // ============================================================================
+    // 12. MAIN 3D ANIMATION & CAMERA LOOP
+    // ============================================================================
+    let lastTime = 0;
+    let lastScoreboardRefresh = 0;
+
+    function animate(now = 0) {
+        requestAnimationFrame(animate);
+        const dt = Math.min(0.05, (now - lastTime) / 1000 || 0.016);
+        lastTime = now;
+        const elapsed = now * 0.001;
+
+        STATE.worldItems.forEach(item => {
+            if (item.collected) return;
+            item.mesh.position.y = item.baseY + Math.sin(elapsed * 2.6 + item.phaseOffset) * 0.12;
+            item.mesh.rotation.y += dt * 1.4;
+
+            if (item.wobbleTimer > 0) {
+                item.wobbleTimer -= dt;
+                item.mesh.rotation.z = Math.sin(elapsed * 35) * 0.35;
+            } else {
+                item.mesh.rotation.z = 0;
+            }
+        });
+
+        if (STATE.guideArrow && STATE.guideArrow.visible) {
+            STATE.guideArrow.position.y = 3.25 + Math.sin(elapsed * 5) * 0.25;
+            STATE.guideArrow.rotation.y += dt * 2.5;
+        }
+
+        const myTeamState = MP.myTeamId ? MP.teamsData[MP.myTeamId] : null;
+        if (myTeamState?.soupCooked && Math.random() < 0.25) {
+            const puff = new THREE.Mesh(
+                new THREE.SphereGeometry(0.11, 6, 6),
+                new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.65 })
+            );
+            puff.position.set(
+                -3.0 + (Math.random() - 0.5) * 0.5,
+                1.9,
+                -10.1 + (Math.random() - 0.5) * 0.5
+            );
+            puff.userData.vy = 0.65;
+            puff.userData.life = 1.4;
+            scene.add(puff);
+            STATE.steamPuffs.push(puff);
+        }
+
+        for (let i = STATE.waterDrops.length - 1; i >= 0; i--) {
+            const d = STATE.waterDrops[i];
+            d.position.y += d.userData.vy * dt;
+            if (d.position.y < 1.2) {
+                scene.remove(d);
+                STATE.waterDrops.splice(i, 1);
+            }
+        }
+
+        for (let i = STATE.steamPuffs.length - 1; i >= 0; i--) {
+            const p = STATE.steamPuffs[i];
+            p.position.y += p.userData.vy * dt;
+            p.scale.addScalar(dt * 0.45);
+            p.userData.life -= dt;
+            p.material.opacity = Math.max(0, p.userData.life * 0.45);
+            if (p.userData.life <= 0) {
+                scene.remove(p);
+                STATE.steamPuffs.splice(i, 1);
+            }
+        }
+
+        // Refresh 9-Team Scoreboard timers once per second
+        if (now - lastScoreboardRefresh > 1000) {
+            lastScoreboardRefresh = now;
+            if (STATE.phase === 'PLAYING' && !document.getElementById('live-scoreboard-panel').classList.contains('hidden')) {
+                renderLive9TeamScoreboard();
+            }
+            if (STATE.phase === 'WIN') {
+                renderFinalLeaderboard();
+            }
+        }
+
+        if (STATE.phase === 'SELECT' || STATE.phase === 'LOBBY') {
+            if (previewCharacterMesh) {
+                previewCharacterMesh.rotation.y = Math.sin(elapsed * 1.2) * 0.55;
+            }
+            camera.position.set(1.0, 3.0, 9.8);
+            camera.lookAt(1.0, 2.1, 5.5);
+        } else if (STATE.phase === 'WIN') {
+            updatePlayerAndProximity(dt);
+            const angle = elapsed * 0.7;
+            camera.position.set(
+                -3.5 + Math.sin(angle) * 4.4,
+                3.2,
+                -9.2 + Math.cos(angle) * 4.4
+            );
+            camera.lookAt(-3.5, 1.75, -9.4);
+        } else {
+            updatePlayerAndProximity(dt);
+
+            const dist = STATE.camDist;
+            const horiz = Math.cos(STATE.camPitch) * dist;
+            const vert = Math.sin(STATE.camPitch) * dist;
+            const targetCamX = playerGroup.position.x + Math.sin(STATE.camYaw) * horiz;
+            const targetCamZ = playerGroup.position.z + Math.cos(STATE.camYaw) * horiz;
+            const targetCamY = playerGroup.position.y + 1.6 + vert;
+
+            camera.position.lerp(new THREE.Vector3(targetCamX, targetCamY, targetCamZ), Math.min(1, dt * 10));
+            camera.lookAt(playerGroup.position.x, playerGroup.position.y + 1.65, playerGroup.position.z);
+        }
+
+        renderer.render(scene, camera);
+    }
+
+    window.onload = function () {
+        initThree();
+        setupControls();
+        if (window.initFirebaseMultiplayer && !MP.db) {
+            window.initFirebaseMultiplayer();
+        }
+        animate();
+    };
+    </script>
+</body>
+</html>
